@@ -1,0 +1,14 @@
+{
+    "__default__" :
+    {
+        "account" : "SNIC2018-3-18",
+        "time" : "10-00:00",
+        "n" : 1,
+        "partition" : "hebbe",
+        "mail-type" : "END,FAIL",
+        "mail-user" : "alezel@chalmers.se",
+        "name"      : "JOBNAME.{rule}.{wildcards}",
+        "output"    : "logs/cluster/{rule}.{wildcards}.out",
+        "error"     : "logs/cluster/{rule}.{wildcards}.err"
+    },
+}
