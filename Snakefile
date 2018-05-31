@@ -111,12 +111,19 @@ rule makeConfigs:
 
 #configuration when running on hebbe
 import socket
+import getpass
+
 if "hebbe" in socket.gethostname():
-    shell.prefix("module load Anaconda3; module load CUDA/8.0.44; export LD_LIBRARY_PATH=/c3se/users/alezel/Hebbe/bin/cuda/lib64:$LD_LIBRARY_PATH; source activate /c3se/users/alezel/Hebbe/projects/microbes_metagenomics/environments/py36_tensorflow")
+    if getpass.getuser() == "alezel":
+        shell.prefix("module load Anaconda3; module load CUDA/8.0.44; export LD_LIBRARY_PATH=/c3se/users/alezel/Hebbe/bin/cuda/lib64:$LD_LIBRARY_PATH; source activate /c3se/users/alezel/Hebbe/projects/microbes_metagenomics/environments/py36_tensorflow")
+    if getpass.getuser() == "zrimec":
+        shell.prefix("module load Anaconda3; module load CUDA/8.0.44; export LD_LIBRARY_PATH=/c3se/users/zrimec/Hebbe/g_nobackup/bin/cuda/lib64:$LD_LIBRARY_PATH; source activate py36_tensorflow")
+
 
 #particular configuration for my MacBook pro
 if "liv003l" in socket.gethostname():
     shell.prefix("source activate tensorflow36")
+
 
 rule run_model:
     input:
