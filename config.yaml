@@ -15,7 +15,7 @@ params:
   alpha:
     a: -4
     #b: 0
-    n: 10
+    n: 1
 
 #momentum beta
 #beta = 1 - 10 ^ r
@@ -23,7 +23,7 @@ params:
   beta:
     a: -3
     b: -1
-    n: 5
+    n: 1
 
   mbatch: [100]
 
@@ -32,6 +32,6 @@ params:
     beta2: 0.999
     epsilon: 10e-9
 
-  epochs: 300
-  dropout: [0, 0.1, 0.25, 0.5]
+  epochs: 3
+  dropout: [0, 0.25, 0.5]
   nFC: [10, 20, 30]

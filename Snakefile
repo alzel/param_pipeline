@@ -4,6 +4,7 @@ import glob
 import numpy as np
 configfile: "config.yaml"
 
+localrules: all, makeDefault
 
 np.random.seed(123)
 ###generating parameters
@@ -45,7 +46,7 @@ rule all:
         MODELS
 
 #saving defualt params
-rule makeDefaut:
+rule makeDefault:
     input:
         "config.yaml"
     output:
@@ -113,17 +114,27 @@ rule makeConfigs:
 import socket
 import getpass
 
-if "hebbe" in socket.gethostname():
+
+
+#hacks needed to run different tensoflows depending if node has GPU
+if "hebbe24-7" in socket.gethostname() or "hebbe24-5" in socket.gethostname():
     if getpass.getuser() == "alezel":
-        shell.prefix("module load Anaconda3; module load CUDA/8.0.44; export LD_LIBRARY_PATH=/c3se/users/alezel/Hebbe/bin/cuda/lib64:$LD_LIBRARY_PATH; source activate /c3se/users/alezel/Hebbe/projects/microbes_metagenomics/environments/py36_tensorflow")
+        shell.prefix("module load Anaconda3; module load CUDA/8.0.44; export LD_LIBRARY_PATH=/c3se/users/alezel/Hebbe/bin/cuda/lib64:$LD_LIBRARY_PATH; source activate /c3se/users/alezel/Hebbe/projects/microbes_metagenomics/environments/py36_tensorflow;")
     if getpass.getuser() == "zrimec":
-        shell.prefix("module load Anaconda3; module load CUDA/8.0.44; export LD_LIBRARY_PATH=/c3se/users/zrimec/Hebbe/g_nobackup/bin/cuda/lib64:$LD_LIBRARY_PATH; source activate py36_tensorflow")
+        shell.prefix("module load Anaconda3; module load CUDA/8.0.44; export LD_LIBRARY_PATH=/c3se/users/zrimec/Hebbe/g_nobackup/bin/cuda/lib64:$LD_LIBRARY_PATH; source activate /c3se/users/zrimec/Hebbe/.conda/envs/py36_tensorflow; ")
+elif "hebbe" in socket.gethostname():
+    if getpass.getuser() == "zrimec":
+        shell.prefix("module load Anaconda3; source activate /c3se/users/zrimec/Hebbe/.conda/envs/py36_tensorflow_noGPU")
 
-
+	
+	
 #particular configuration for my MacBook pro
 if "liv003l" in socket.gethostname():
     shell.prefix("source activate tensorflow36")
 
+import os
+if not os.path.exists("weights"):
+    os.makedirs("weights")
 
 rule run_model:
     input:
@@ -139,3 +150,4 @@ rule run_model:
         jupyter nbconvert --to=python models/{wildcards.model}.ipynb
         python models/{wildcards.model}.py {input.config} {params.weights} {output.results} #sys.arg[1] - config; sys.arg[2] - trained models; sys.arg[3] - optimization results;
         """
+
