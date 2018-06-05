@@ -17,7 +17,6 @@ ALPHA = np.unique(np.around(10 ** r, 5))
 #beta momentum
 #beta = 1 - 10 ^ r
 #r[-a, -b] e.g. r E [-3, -1]
-
 a = config['params']['beta']['a']  # mustbe negative
 b = config['params']['beta']['b']  # must be
 n = config['params']['beta']['n']
@@ -25,8 +24,6 @@ r = (a+1)*np.random.rand(n)
 BETA = np.unique(np.around(1 - 10 ** (r + b), 5))
 MBATCH = config['params']['mbatch']
 DROPOUT =  config['params']['dropout']
-
-
 
 MODELS =  expand("results/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv",
                  model=config['input_files']['models'],
@@ -109,12 +106,9 @@ rule makeConfigs:
                 config.set('main', "MBATCH" , wildcards.mbatch)
                 config.write(configfile)
 
-
 #configuration when running on hebbe
 import socket
 import getpass
-
-
 
 #hacks needed to run different tensoflows depending if node has GPU
 if "hebbe24-7" in socket.gethostname() or "hebbe24-5" in socket.gethostname():
@@ -126,8 +120,6 @@ elif "hebbe" in socket.gethostname():
     if getpass.getuser() == "zrimec":
         shell.prefix("module load Anaconda3; source activate /c3se/users/zrimec/Hebbe/.conda/envs/py36_tensorflow_noGPU")
 
-	
-	
 #particular configuration for my MacBook pro
 if "liv003l" in socket.gethostname():
     shell.prefix("source activate tensorflow36")
@@ -138,16 +130,32 @@ if not os.path.exists("weights"):
 
 rule run_model:
     input:
-        model="models/{model}.ipynb",
+        template=config["input_files"]["template"],
+        model="models/{model}_input.py",
         config="configs/config_{alpha}_{beta}_{dropout}_{mbatch}.cfg"
     output:
-        results="results/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv",
+        results="results/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv"
     params:
         weights="weights/{model}_{alpha}_{beta}_{dropout}_{mbatch}"
     log: "logs/{model}_{alpha}_{beta}_{dropout}_{mbatch}.log"
     shell:
-        """
-        jupyter nbconvert --to=python models/{wildcards.model}.ipynb
-        python models/{wildcards.model}.py {input.config} {params.weights} {output.results} #sys.arg[1] - config; sys.arg[2] - trained models; sys.arg[3] - optimization results;
-        """
+       """
+       jupyter nbconvert --to=python {input.template}
+       python {input.template} {input.model} {input.config} {params.weights} {output.results} #sys.arg[1] - model name;  #sys.arg[2] - config; sys.arg[3] - trained models; sys.arg[4] - optimization results;
+       """
 
+#old rule
+# rule run_model:
+#     input:
+#         model="models/{model}.ipynb",
+#         config="configs/config_{alpha}_{beta}_{dropout}_{mbatch}.cfg"
+#     output:
+#         results="results/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv",
+#     params:
+#         weights="weights/{model}_{alpha}_{beta}_{dropout}_{mbatch}"
+#     log: "logs/{model}_{alpha}_{beta}_{dropout}_{mbatch}.log"
+#     shell:
+#         """
+#         jupyter nbconvert --to=python models/{wildcards.model}.ipynb
+#         python models/{wildcards.model}.py {input.config} {params.weights} {output.results} #sys.arg[1] - config; sys.arg[2] - trained models; sys.arg[3] - optimization results;
+#         """
