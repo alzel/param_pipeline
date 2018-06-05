@@ -2,6 +2,7 @@
 input_files:
   models:
    THIS_model: "models/THIS_model.ipynb"
+   THIS_model-V2: "models/THIS_model-V2.ipynb"
    
 #default config output_dir
 config_dir: "defaults"
@@ -32,6 +33,6 @@ params:
     beta2: 0.999
     epsilon: 10e-9
 
-  epochs: 3
-  dropout: [0, 0.25, 0.5]
+  epochs: 1
+  dropout: [0.5]
   nFC: [10, 20, 30]
