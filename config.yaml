@@ -2,7 +2,7 @@
 input_files:
   models:
    THIS_model: "models/THIS_model_input.py"
-  template: "models/THIS_model-V2.ipynb"
+  template: "template/THIS_model-V2.ipynb"
     #THIS_model-V2: "models/THIS_model-V2.ipynb"
 
 #default config output_dir
