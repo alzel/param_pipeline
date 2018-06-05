@@ -138,11 +138,17 @@ rule run_model:
     params:
         weights="weights/{model}_{alpha}_{beta}_{dropout}_{mbatch}"
     log: "logs/{model}_{alpha}_{beta}_{dropout}_{mbatch}.log"
-    shell:
-       """
-       jupyter nbconvert --to=python {input.template}
-       python {input.template} {input.model} {input.config} {params.weights} {output.results} #sys.arg[1] - model name;  #sys.arg[2] - config; sys.arg[3] - trained models; sys.arg[4] - optimization results;
-       """
+    run:
+       import os
+       import re
+       template = input.template
+       os.system('jupyter nbconvert --to=python ' + template)
+       template = re.sub(".ipynb", "", template, count=0, flags=0)
+       command = "python {} {} {} {} {}".format(template + '.py', input.model,  input.config,  params.weights, output.results) 
+       print (command)
+       os.system(command)
+       #python {input.template} {input.model} {input.config} {params.weights} {output.results} #sys.arg[1] - model name;  #sys.arg[2] - config;  sys.arg[3] - optimization results;
+
 
 #old rule
 # rule run_model:
