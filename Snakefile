@@ -32,11 +32,9 @@ MODELS =  expand("results/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv",
                  dropout=DROPOUT,
                  mbatch=MBATCH)
 
-# INFILES =  expand("configs/config_{alpha}_{beta}_{dropout}_{mbatch}.cfg",
-#                  alpha=ALPHA,
-#                  beta=BETA,
-#                  dropout=DROPOUT,
-#                  mbatch=MBATCH)
+
+if not os.path.exists("logs"):
+    os.makedirs("logs")
 
 rule all:
     input:
@@ -112,13 +110,9 @@ import getpass
 
 #hacks needed to run different tensoflows depending if node has GPU
 if "hebbe24-7" in socket.gethostname() or "hebbe24-5" in socket.gethostname():
-    if getpass.getuser() == "alezel":
-        shell.prefix("module load Anaconda3; module load CUDA/8.0.44; export LD_LIBRARY_PATH=/c3se/users/alezel/Hebbe/bin/cuda/lib64:$LD_LIBRARY_PATH; source activate /c3se/users/alezel/Hebbe/projects/microbes_metagenomics/environments/py36_tensorflow;")
-    if getpass.getuser() == "zrimec":
-        shell.prefix("module load Anaconda3; module load CUDA/8.0.44; export LD_LIBRARY_PATH=/c3se/users/zrimec/Hebbe/g_nobackup/bin/cuda/lib64:$LD_LIBRARY_PATH; source activate /c3se/users/zrimec/Hebbe/.conda/envs/py36_tensorflow; ")
+    shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate python364;")
 elif "hebbe" in socket.gethostname():
-    if getpass.getuser() == "zrimec":
-        shell.prefix("module load Anaconda3; source activate /c3se/users/zrimec/Hebbe/.conda/envs/py36_tensorflow_noGPU")
+    shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4; source activate python364;")
 
 #particular configuration for my MacBook pro
 if "liv003l" in socket.gethostname():
@@ -137,17 +131,26 @@ rule run_model:
         results="results/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv"
     params:
         weights="weights/{model}_{alpha}_{beta}_{dropout}_{mbatch}"
-    log: "logs/{model}_{alpha}_{beta}_{dropout}_{mbatch}.log"
+    log: 
+        log1="logs/{model}_{alpha}_{beta}_{dropout}_{mbatch}.log"
     run:
-       import os
-       import re
-       template = input.template
-       os.system('jupyter nbconvert --to=python ' + template)
-       template = re.sub(".ipynb", "", template, count=0, flags=0)
-       command = "python {} {} {} {} {}".format(template + '.py', input.model,  input.config,  params.weights, output.results) 
-       print (command)
-       os.system(command)
-       #python {input.template} {input.model} {input.config} {params.weights} {output.results} #sys.arg[1] - model name;  #sys.arg[2] - config;  sys.arg[3] - optimization results;
+        import socket
+        import getpass
+
+        #hacks needed to run different tensoflows depending if node has GPU
+        if "hebbe24-7" in socket.gethostname() or "hebbe24-5" in socket.gethostname():
+            shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate python364;")
+        elif "hebbe" in socket.gethostname():
+            shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4; source activate python364;")
+        import os
+        import re
+        template = input.template
+        os.system('jupyter nbconvert --to=python ' + template)
+        template = re.sub(".ipynb", "", template, count=0, flags=0)
+        command = "python {} {} {} {} {} 2>&1 | tee {} ".format(template + '.py', input.model,  input.config,  params.weights, output.results, log.log1) 
+        print (command)
+        os.system(command)
+        #python {input.template} {input.model} {input.config} {params.weights} {output.results} #sys.arg[1] - model name;  #sys.arg[2] - config;  sys.arg[3] - optimization results;
 
 
 #old rule

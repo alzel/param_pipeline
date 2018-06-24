@@ -1,14 +1,20 @@
 {
-    "__default__" :
-    {
+"__default__" : {
         "account" : "SNIC2018-3-18",
-        "time" : "10-00:00",
+        "time" : "0-10:00",
         "n" : 1,
         "partition" : "hebbe",
         "mail-type" : "END,FAIL",
-        "mail-user" : "alezel@chalmers.se",
-        "name"      : "JOBNAME.{rule}.{wildcards}",
-        "output"    : "logs/cluster/{rule}.{wildcards}.out",
-        "error"     : "logs/cluster/{rule}.{wildcards}.err"
-    },
+        "mail-user" : "$USER@chalmers.se",
+        "name"      : "DL.{rule}",
+        "output"    : "logs/%j.%N.{rule}.{wildcards}.out.log",
+        "error"     : "logs/%j.%N.{rule}.{wildcards}.err.log",
+},
+
+"#documenation": {
+        "#A": "----------------------------------------------------------------------------------",
+        "#raw_cmdline": "Use with: snakemake -j 500 --cluster-config cluster_config.json --cluster \"sbatch --constraint='GPU|NOGPU' -A {cluster.account} -p {cluster.partition} -t {cluster.time} -n {cluster.n} --mail-user {cluster.mail-user} --mail-type {cluster.mail-type} --error {cluster.error} --output {cluster.output}\"",
+        "#Z": "----------------------------------------------------------------------------------"
+},
 }
+
