@@ -73,7 +73,7 @@ rule makeDefault:
                 config_new.set('adam', "EPSILON" , adam_epsilon)
                 config_new.add_section('main')
                 config_new.set('main', "EPOCHS" , epochs)
-
+		config_new.set('main', "SHUFFLE" , config['params']['shuffle'] )
                 config_new.write(configfile)
 
 rule makeConfigs:
@@ -102,7 +102,7 @@ rule makeConfigs:
                 config.set('main', "BETA" , wildcards.beta)
                 config.set('main', "DROPOUT" , wildcards.dropout)
                 config.set('main', "MBATCH" , wildcards.mbatch)
-                config.write(configfile)
+		config.write(configfile)
 
 #configuration when running on hebbe
 import socket
