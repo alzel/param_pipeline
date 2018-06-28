@@ -126,25 +126,25 @@ rule run_model:
     run:
         import socket
         import getpass
-
+        import os
+        prefix = ""
         #hacks needed to run different tensoflows depending if node has GPU
         if "hebbe24-7" in socket.gethostname() or "hebbe24-5" in socket.gethostname():
-            shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate python364;")
+            prefix = ("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate python364;")
         elif "hebbe" in socket.gethostname():
-            shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4; source activate python364;")
+            prefix = ("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4; source activate python364;")
 
         #particular configuration for my MacBook pro
         if "liv003l" in socket.gethostname():
-            shell.prefix("source activate tensorflow36")
+            prefix("source activate tensorflow36;")
 
-        import os
         import re
         template = input.template
         os.system('jupyter nbconvert --to=python ' + template)
         template = re.sub(".ipynb", "", template, count=0, flags=0)
         command = "python {} {} {} {} {} {} 2>&1 | tee {} ".format(template + '.py', input.model, input.config, params.weights, output.results, input.dataset, log.log1)
         print (command)
-        os.system(command)
+        os.system(prefix + command)
         #python {input.template} {input.model} {input.config} {params.weights} {output.results} #sys.arg[1] - model name;  #sys.arg[2] - config;  sys.arg[3] - optimization results;
 
 
