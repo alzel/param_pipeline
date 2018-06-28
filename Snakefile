@@ -25,7 +25,8 @@ BETA = np.unique(np.around(1 - 10 ** (r + b), 5))
 MBATCH = config['params']['mbatch']
 DROPOUT =  config['params']['dropout']
 
-MODELS =  expand("results/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv",
+MODELS =  expand("results/{dataset}/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv",
+                 dataset=config['input_files']['datasets'],
                  model=config['input_files']['models'],
                  alpha=ALPHA,
                  beta=BETA,
@@ -73,7 +74,7 @@ rule makeDefault:
                 config_new.set('adam', "EPSILON" , adam_epsilon)
                 config_new.add_section('main')
                 config_new.set('main', "EPOCHS" , epochs)
-		config_new.set('main', "SHUFFLE" , config['params']['shuffle'] )
+                config_new.set('main', "SHUFFLE" , config['params']['shuffle'] )
                 config_new.write(configfile)
 
 rule makeConfigs:
@@ -104,35 +105,24 @@ rule makeConfigs:
                 config.set('main', "MBATCH" , wildcards.mbatch)
 		config.write(configfile)
 
-#configuration when running on hebbe
-import socket
-import getpass
 
-#hacks needed to run different tensoflows depending if node has GPU
-if "hebbe24-7" in socket.gethostname() or "hebbe24-5" in socket.gethostname():
-    shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate python364;")
-elif "hebbe" in socket.gethostname():
-    shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4; source activate python364;")
-
-#particular configuration for my MacBook pro
-if "liv003l" in socket.gethostname():
-    shell.prefix("source activate tensorflow36")
-
+#making directoris for params, whose are not automatic
 import os
-if not os.path.exists("weights"):
-    os.makedirs("weights")
+for dataset in config['input_files']['datasets']:
+    os.makedirs(os.path.join("weights", dataset), exist_ok=True)
 
 rule run_model:
     input:
         template=config["input_files"]["template"],
-        model="models/{model}_input.py",
+        dataset=lambda wildcards: config["input_files"]["datasets"][wildcards.dataset],
+        model=lambda wildcards: config["input_files"]["models"][wildcards.model],
         config="configs/config_{alpha}_{beta}_{dropout}_{mbatch}.cfg"
     output:
-        results="results/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv"
+        results="results/{dataset}/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv"
     params:
-        weights="weights/{model}_{alpha}_{beta}_{dropout}_{mbatch}"
-    log: 
-        log1="logs/{model}_{alpha}_{beta}_{dropout}_{mbatch}.log"
+        weights="weights/{dataset}/{model}_{alpha}_{beta}_{dropout}_{mbatch}"
+    log:
+        log1="logs/{dataset}/{model}_{alpha}_{beta}_{dropout}_{mbatch}.log"
     run:
         import socket
         import getpass
@@ -142,12 +132,17 @@ rule run_model:
             shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate python364;")
         elif "hebbe" in socket.gethostname():
             shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4; source activate python364;")
+
+        #particular configuration for my MacBook pro
+        if "liv003l" in socket.gethostname():
+            shell.prefix("source activate tensorflow36")
+
         import os
         import re
         template = input.template
         os.system('jupyter nbconvert --to=python ' + template)
         template = re.sub(".ipynb", "", template, count=0, flags=0)
-        command = "python {} {} {} {} {} 2>&1 | tee {} ".format(template + '.py', input.model,  input.config,  params.weights, output.results, log.log1) 
+        command = "python {} {} {} {} {} {} 2>&1 | tee {} ".format(template + '.py', input.model, input.config, params.weights, output.results, input.dataset, log.log1)
         print (command)
         os.system(command)
         #python {input.template} {input.model} {input.config} {params.weights} {output.results} #sys.arg[1] - model name;  #sys.arg[2] - config;  sys.arg[3] - optimization results;

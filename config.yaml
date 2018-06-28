@@ -1,10 +1,11 @@
 
 input_files:
   models:
-     THIS_model : "models/THIS_model"
-  
-  template : "template/THIS_model-V2.ipynb"
-
+     THIS_model : "models/THIS_model_input.py"
+     THIS_CNN_NN_vals: "models/THIS_CNN_NN_vals_input.py"
+  template : "template/THIS_model-V3.ipynb"
+  datasets :
+    data1 : "data/THIS_data.npz"
 #default config output_dir
 config_dir: "defaults"
 #saving configs
@@ -35,7 +36,6 @@ params:
    beta2: 0.999
    epsilon: 10e-9
 
-  epochs: 1
+  epochs: 2
   dropout: [0.5]
   nFC: [10, 20, 30]
-  
