@@ -136,7 +136,7 @@ rule run_model:
 
         #particular configuration for my MacBook pro
         if "liv003l" in socket.gethostname():
-            prefix("source activate tensorflow36;")
+            prefix = ("source activate tensorflow36;")
 
         import re
         template = input.template
