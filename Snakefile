@@ -129,13 +129,13 @@ rule run_model:
 
         #hacks needed to run different tensoflows depending if node has GPU
         if "hebbe24-7" in socket.gethostname() or "hebbe24-5" in socket.gethostname():
-            shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate python364;")
+            os.system("set +u; module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate python364; set -u")
         elif "hebbe" in socket.gethostname():
-            shell.prefix("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4; source activate python364;")
+            os.system("set +u;  module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4; source activate python364; set -u")
 
         #particular configuration for my MacBook pro
         if "liv003l" in socket.gethostname():
-            shell.prefix("source activate tensorflow36")
+            os.system("source activate tensorflow36")
 
         import os
         import re
