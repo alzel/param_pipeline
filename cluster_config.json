@@ -2,7 +2,7 @@
 "__default__" : {
         "account" : "SNIC2018-3-18",
         "time" : "0-10:00",
-        "n" : 1,
+        "n" : 2,
         "partition" : "hebbe",
         "mail-type" : "END,FAIL",
         "mail-user" : "$USER@chalmers.se",

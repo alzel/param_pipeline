@@ -4,7 +4,7 @@ import glob
 import numpy as np
 configfile: "config.yaml"
 
-localrules: all, makeDefault
+localrules: all, makeDefault, makeConfigs
 
 np.random.seed(123)
 ###generating parameters
