@@ -5,6 +5,9 @@ from keras.layers import Conv1D,MaxPooling1D,LSTM,BatchNormalization,Dropout,Inp
 
 
 def load_data(fname):
+    # X is multi-variable array
+    # Y contains single variable - fix shape for Keras
+    
     npzfile = np.load(fname)
     Xh_train = npzfile['arr_0']
     Xh_test = npzfile['arr_1']
@@ -12,13 +15,17 @@ def load_data(fname):
     Xv_test = npzfile['arr_3']
     Y_train = npzfile['arr_4']
     Y_test = npzfile['arr_5']
-
+    
     X_train = list()
     X_train.append(Xh_train)
-    #X_train.append(Xv_train)
+    X_train.append(Xv_train)
     X_test = list()
     X_test.append(Xh_test)
-    #X_test.append(Xv_test)
+    X_test.append(Xv_test)
+    
+    Y_train = Y_train.astype(np.float32).reshape((-1,1))
+    Y_test = Y_test.astype(np.float32).reshape((-1,1))
+
     return X_train, X_test, Y_train, Y_test
 
 def POC_model(input_shape_hot,DR):
