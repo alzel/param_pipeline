@@ -1,7 +1,7 @@
 {
 "__default__" : {
-        "account" : "SNIC2018-3-18",
-        "time" : "0-10:00",
+        "account" : "C3SE2018-1-23",
+        "time" : "0-6:00",
         "n" : 2,
         "partition" : "hebbe",
         "mail-type" : "END,FAIL",
@@ -13,7 +13,7 @@
 
 "#documenation": {
         "#A": "----------------------------------------------------------------------------------",
-        "#raw_cmdline": "Use with: snakemake -j 500 --cluster-config cluster_config.json --cluster \"sbatch --constraint='GPU|NOGPU' -A {cluster.account} -p {cluster.partition} -t {cluster.time} -n {cluster.n} --mail-user {cluster.mail-user} --mail-type {cluster.mail-type} --error {cluster.error} --output {cluster.output}\"",
+        "#raw_cmdline": "Use with: snakemake -j 99 --cluster-config cluster_config.json --cluster \"sbatch  -A {cluster.account} -p {cluster.partition} -t {cluster.time} -n {cluster.n} --mail-user {cluster.mail-user} --mail-type {cluster.mail-type} --error {cluster.error} --output {cluster.output}\"",
         "#Z": "----------------------------------------------------------------------------------"
 },
 }
