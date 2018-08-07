@@ -1,9 +1,19 @@
 
 input_files:
   models:
-     THIS_model : "models/THIS_model_input.py"
-     THIS_CNN_NN_vals: "models/THIS_CNN_NN_vals_input.py"
-  template : "template/THIS_model-V3.ipynb"
+     POC_v1_acgh : "models/POC_v1_acgh.py"
+#     POC_v1_adgh : "models/POC_v1_adgh.py"
+#     POC_v1_aegh : "models/POC_v1_aegh.py"
+#     POC_v1_acgh10 : "models/POC_v1_acgh10.py"
+#     POC_v1_adgh10 : "models/POC_v1_adgh10.py"
+#     POC_v1_aegh10 : "models/POC_v1_aegh10.py"
+#     POC_v1_bcfh : "models/POC_v1_bcfh.py"
+#     POC_v1_bcgh : "models/POC_v1_bcgh.py"
+#     POC_v1_bdfh : "models/POC_v1_bdfh.py"
+#     POC_v1_bdgh : "models/POC_v1_bdgh.py"
+#     POC_v1_befh : "models/POC_v1_befh.py"
+#     POC_v1_begh : "models/POC_v1_begh.py"
+  template : "template/THIS_model-V5.ipynb"
   datasets :
     data1 : "data/THIS_data.npz"
 #default config output_dir
@@ -13,21 +23,22 @@ output_dir: "configs"
 
 params:
   shuffle: True
+  lrs : False
 #learning rates alpha
 #r = a*np.random.rand(n)
 #alpha = 10 ** r
   alpha:
-   a: -4
+   a: -1
    #b: 0
    n: 1
 
 #momentum beta
 #beta = 1 - 10 ^ r
 #r E [-a, -b] r.r. -3, -1
-  beta:
-   a: -3
-   b: -1
-   n: 1
+#  beta:
+#  a: -3
+#  b: -1
+# n: 1
 
   mbatch: [100]
 
@@ -36,6 +47,6 @@ params:
    beta2: 0.999
    epsilon: 10e-9
 
-  epochs: 2
+  epochs: 100
   dropout: [0.5]
   nFC: [10, 20, 30]
