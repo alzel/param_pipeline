@@ -17,22 +17,21 @@ ALPHA = np.unique(np.around(10 ** r, 5))
 #beta momentum
 #beta = 1 - 10 ^ r
 #r[-a, -b] e.g. r E [-3, -1]
-a = config['params']['beta']['a']  # mustbe negative
-b = config['params']['beta']['b']  # must be
-n = config['params']['beta']['n']
-r = (a+1)*np.random.rand(n)
-BETA = np.unique(np.around(1 - 10 ** (r + b), 5))
+#a = config['params']['beta']['a']  # mustbe negative
+#b = config['params']['beta']['b']  # must be
+#n = config['params']['beta']['n']
+#r = (a+1)*np.random.rand(n)
+#BETA = np.unique(np.around(1 - 10 ** (r + b), 5))
 MBATCH = config['params']['mbatch']
 DROPOUT =  config['params']['dropout']
 
-MODELS =  expand("results/{dataset}/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv",
+MODELS =  expand("results/{dataset}/{model}_{alpha}_{dropout}_{mbatch}.csv",
                  dataset=config['input_files']['datasets'],
                  model=config['input_files']['models'],
                  alpha=ALPHA,
-                 beta=BETA,
+#                 beta=BETA,
                  dropout=DROPOUT,
                  mbatch=MBATCH)
-
 
 if not os.path.exists("logs"):
     os.makedirs("logs")
@@ -75,13 +74,14 @@ rule makeDefault:
                 config_new.add_section('main')
                 config_new.set('main', "EPOCHS" , epochs)
                 config_new.set('main', "SHUFFLE" , config['params']['shuffle'] )
+                config_new.set('main', "LRS" , config['params']['lrs'] )
                 config_new.write(configfile)
 
 rule makeConfigs:
     input:
         "defaults/config_default.cfg"
     output:
-        "configs/config_{alpha}_{beta}_{dropout}_{mbatch}.cfg",
+        "configs/config_{alpha}_{dropout}_{mbatch}.cfg",
     run:
         import configparser
         config_default = configparser.ConfigParser()
@@ -100,11 +100,10 @@ rule makeConfigs:
                         config.set(section, key, value)
 
                 config.set('main', "ALPHA" , wildcards.alpha)
-                config.set('main', "BETA" , wildcards.beta)
+#                config.set('main', "BETA" , wildcards.beta)
                 config.set('main', "DROPOUT" , wildcards.dropout)
                 config.set('main', "MBATCH" , wildcards.mbatch)
 		config.write(configfile)
-
 
 #making directoris for params, whose are not automatic
 import os
@@ -116,13 +115,13 @@ rule run_model:
         template=config["input_files"]["template"],
         dataset=lambda wildcards: config["input_files"]["datasets"][wildcards.dataset],
         model=lambda wildcards: config["input_files"]["models"][wildcards.model],
-        config="configs/config_{alpha}_{beta}_{dropout}_{mbatch}.cfg"
+        config="configs/config_{alpha}_{dropout}_{mbatch}.cfg"
     output:
-        results="results/{dataset}/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv"
+        results="results/{dataset}/{model}_{alpha}_{dropout}_{mbatch}.csv"
     params:
-        weights="weights/{dataset}/{model}_{alpha}_{beta}_{dropout}_{mbatch}"
+        weights="weights/{dataset}/{model}_{alpha}_{dropout}_{mbatch}"
     log:
-        log1="logs/{dataset}/{model}_{alpha}_{beta}_{dropout}_{mbatch}.log"
+        log1="logs/{dataset}/{model}_{alpha}_{dropout}_{mbatch}.log"
     run:
         import socket
         import getpass
@@ -146,20 +145,4 @@ rule run_model:
         print (command)
         os.system(prefix + command)
         #python {input.template} {input.model} {input.config} {params.weights} {output.results} #sys.arg[1] - model name;  #sys.arg[2] - config;  sys.arg[3] - optimization results;
-
-
-#old rule
-# rule run_model:
-#     input:
-#         model="models/{model}.ipynb",
-#         config="configs/config_{alpha}_{beta}_{dropout}_{mbatch}.cfg"
-#     output:
-#         results="results/{model}_{alpha}_{beta}_{dropout}_{mbatch}.csv",
-#     params:
-#         weights="weights/{model}_{alpha}_{beta}_{dropout}_{mbatch}"
-#     log: "logs/{model}_{alpha}_{beta}_{dropout}_{mbatch}.log"
-#     shell:
-#         """
-#         jupyter nbconvert --to=python models/{wildcards.model}.ipynb
-#         python models/{wildcards.model}.py {input.config} {params.weights} {output.results} #sys.arg[1] - config; sys.arg[2] - trained models; sys.arg[3] - optimization results;
-#         """
+        
