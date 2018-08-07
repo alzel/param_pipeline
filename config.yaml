@@ -13,7 +13,7 @@ input_files:
 #     POC_v1_bdgh : "models/POC_v1_bdgh.py"
 #     POC_v1_befh : "models/POC_v1_befh.py"
 #     POC_v1_begh : "models/POC_v1_begh.py"
-  template : "template/THIS_model-V5.ipynb"
+  template : "template/THIS_model-V6.ipynb"
   datasets :
     data1 : "data/THIS_data.npz"
 #default config output_dir
@@ -23,7 +23,7 @@ output_dir: "configs"
 
 params:
   shuffle: True
-  lrs : False
+  lrs : True
 #learning rates alpha
 #r = a*np.random.rand(n)
 #alpha = 10 ** r
