@@ -1,7 +1,7 @@
 
 input_files:
   models:
-     POC_v1_acgh : "models/POC_v1_acgh.py"
+#     POC_v1_acgh : "models/POC_v1_acgh.py"
 #     POC_v1_adgh : "models/POC_v1_adgh.py"
 #     POC_v1_aegh : "models/POC_v1_aegh.py"
 #     POC_v1_acgh10 : "models/POC_v1_acgh10.py"
@@ -10,12 +10,12 @@ input_files:
 #     POC_v1_bcfh : "models/POC_v1_bcfh.py"
 #     POC_v1_bcgh : "models/POC_v1_bcgh.py"
 #     POC_v1_bdfh : "models/POC_v1_bdfh.py"
-#     POC_v1_bdgh : "models/POC_v1_bdgh.py"
+     POC_v1_bdgh : "models/POC_v1_bdgh.py"
 #     POC_v1_befh : "models/POC_v1_befh.py"
 #     POC_v1_begh : "models/POC_v1_begh.py"
-  template : "template/THIS_model-V6.ipynb"
+  template : "template/THIS_model-V6_2.ipynb"
   datasets :
-    data1 : "data/THIS_data.npz"
+    data1 : "data/data_min-system-boxcox_corrected_rsd2.npz"
 #default config output_dir
 config_dir: "defaults"
 #saving configs
@@ -23,30 +23,42 @@ output_dir: "configs"
 
 params:
   shuffle: True
-  lrs : True
+  model_load: False
+
+  mbatch: 64 #[64,128,256]
+  dropout: 0.3 #[0.1, 0.2, 0.3]
+  epochs: 3 #500
+
+#early stopping
+  min_delta: 0.05
+  patience: 30
+
 #learning rates alpha
 #r = a*np.random.rand(n)
 #alpha = 10 ** r
   alpha:
-   a: -1
+   a: -3
    #b: 0
-   n: 1
+   n: 1 #8
 
-#momentum beta
+#momentum beta -> adam beta1
 #beta = 1 - 10 ^ r
 #r E [-a, -b] r.r. -3, -1
-#  beta:
-#  a: -3
-#  b: -1
-# n: 1
+  beta:
+   a: -3
+   b: 0
+   n: 1 #6
 
-  mbatch: [100]
+  beta2:
+   a: -4
+   b: -1
+   n: 1 #6
 
-  adam:
-   beta1: 0.9
-   beta2: 0.999
-   epsilon: 10e-9
+  epsilon: 1e-8 #[1e-2,1e-4,1e-6,1e-8]
+  decay: 0 #[0,0.0000001,0.00001,0.001]
 
-  epochs: 100
-  dropout: [0.5]
-  nFC: [10, 20, 30]
+#learning rate scheduler
+  lrs : True
+  lrs_drop: 0.9 #[0.25,0.5,0.75,0.9]
+  lrs_treshold: 0 #[0,10,20,30]
+  lrs_epoch_drop: 10

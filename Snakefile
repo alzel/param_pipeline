@@ -14,22 +14,43 @@ n = config['params']['alpha']['n']
 r = np.around(a*np.random.rand(n), 3)
 ALPHA = np.unique(np.around(10 ** r, 5))
 
-#beta momentum
+#beta 1
 #beta = 1 - 10 ^ r
 #r[-a, -b] e.g. r E [-3, -1]
-#a = config['params']['beta']['a']  # mustbe negative
-#b = config['params']['beta']['b']  # must be
-#n = config['params']['beta']['n']
-#r = (a+1)*np.random.rand(n)
-#BETA = np.unique(np.around(1 - 10 ** (r + b), 5))
+a = config['params']['beta']['a']
+b = config['params']['beta']['b']
+n = config['params']['beta']['n']
+r = (a+1)*np.random.rand(n)
+BETA = np.unique(np.around(1 - 10 ** (r + b), 5))
+
+#beta 2
+#beta = 1 - 10 ^ r
+#r[-a, -b] e.g. r E [-3, -1]
+a = config['params']['beta2']['a']
+b = config['params']['beta2']['b']
+n = config['params']['beta2']['n']
+r = (a+1)*np.random.rand(n)
+BETA2 = np.unique(np.around(1 - 10 ** (r + b), 5))
+EPSILON = config['params']['epsilon']
+
+# decay can be set like beta but for inclusion of 0 and testing its manual
+#DECAY = config['params']['decay'] # succeded by LRS
+
 MBATCH = config['params']['mbatch']
 DROPOUT =  config['params']['dropout']
 
-MODELS =  expand("results/{dataset}/{model}_{alpha}_{dropout}_{mbatch}.csv",
+LRS_DROP = config['params']['lrs_drop']
+LRS_TRESHOLD = config['params']['lrs_treshold']
+
+MODELS =  expand("results/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.csv",
                  dataset=config['input_files']['datasets'],
                  model=config['input_files']['models'],
                  alpha=ALPHA,
-#                 beta=BETA,
+                 beta=BETA,
+                 beta2=BETA2,
+                 epsilon=EPSILON,
+                 lrs_drop=LRS_DROP,
+                 lrs_treshold=LRS_TRESHOLD,
                  dropout=DROPOUT,
                  mbatch=MBATCH)
 
@@ -62,26 +83,30 @@ rule makeDefault:
 
                 config_new = configparser.RawConfigParser()
 
-                adam_beta1= config['params']['adam']['beta1']
-                adam_beta2= config['params']['adam']['beta2']
-                adam_epsilon = config['params']['adam']['epsilon']
-                epochs = config['params']['epochs']
+#                adam_beta1= config['params']['adam']['beta1']
+#                adam_beta2= config['params']['adam']['beta2']
+#                adam_epsilon = config['params']['adam']['epsilon']
                 #adam
-                config_new.add_section('adam')
-                config_new.set('adam', "BETA1" , adam_beta1)
-                config_new.set('adam', "BETA2" , adam_beta2)
-                config_new.set('adam', "EPSILON" , adam_epsilon)
+#                config_new.add_section('adam')
+#                config_new.set('adam', "BETA1" , adam_beta1)
+#                config_new.set('adam', "BETA2" , adam_beta2)
+#                config_new.set('adam', "EPSILON" , adam_epsilon)
                 config_new.add_section('main')
-                config_new.set('main', "EPOCHS" , epochs)
                 config_new.set('main', "SHUFFLE" , config['params']['shuffle'] )
+                config_new.set('main', "MODEL_LOAD" , config['params']['model_load'] )
                 config_new.set('main', "LRS" , config['params']['lrs'] )
+                config_new.set('main', "LRS_EPOCH_DROP" , config['params']['lrs_epoch_drop'] )
+                config_new.set('main', "EPOCHS" , config['params']['epochs'])
+                config_new.set('main', "MIN_DELTA" , config['params']['min_delta'])
+                config_new.set('main', "PATIENCE" , config['params']['patience'])
+                config_new.set('main', "DECAY" , config['params']['decay'])
                 config_new.write(configfile)
 
 rule makeConfigs:
     input:
         "defaults/config_default.cfg"
     output:
-        "configs/config_{alpha}_{dropout}_{mbatch}.cfg",
+        "configs/config_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.cfg",
     run:
         import configparser
         config_default = configparser.ConfigParser()
@@ -100,7 +125,11 @@ rule makeConfigs:
                         config.set(section, key, value)
 
                 config.set('main', "ALPHA" , wildcards.alpha)
-#                config.set('main', "BETA" , wildcards.beta)
+                config.set('main', "BETA" , wildcards.beta)
+                config.set('main', "BETA2" , wildcards.beta2)
+                config.set('main', "EPSILON" , wildcards.epsilon)
+                config.set('main', "LRS_DROP" , wildcards.lrs_drop)
+                config.set('main', "LRS_TRESHOLD" , wildcards.lrs_treshold)
                 config.set('main', "DROPOUT" , wildcards.dropout)
                 config.set('main', "MBATCH" , wildcards.mbatch)
 		config.write(configfile)
@@ -115,13 +144,13 @@ rule run_model:
         template=config["input_files"]["template"],
         dataset=lambda wildcards: config["input_files"]["datasets"][wildcards.dataset],
         model=lambda wildcards: config["input_files"]["models"][wildcards.model],
-        config="configs/config_{alpha}_{dropout}_{mbatch}.cfg"
+        config="configs/config_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.cfg"
     output:
-        results="results/{dataset}/{model}_{alpha}_{dropout}_{mbatch}.csv"
+        results="results/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.csv"
     params:
-        weights="weights/{dataset}/{model}_{alpha}_{dropout}_{mbatch}"
+        weights="weights/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}"
     log:
-        log1="logs/{dataset}/{model}_{alpha}_{dropout}_{mbatch}.log"
+        log1="logs/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.log"
     run:
         import socket
         import getpass
@@ -145,4 +174,3 @@ rule run_model:
         print (command)
         os.system(prefix + command)
         #python {input.template} {input.model} {input.config} {params.weights} {output.results} #sys.arg[1] - model name;  #sys.arg[2] - config;  sys.arg[3] - optimization results;
-        

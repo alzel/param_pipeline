@@ -1,9 +1,9 @@
 {
 "__default__" : {
-        "account" : "C3SE2018-1-23",
+        "account" : "SNIC2018-3-378",
         "time" : "0-6:00",
         "n" : 2,
-        "partition" : "hebbe",
+        "partition" : "batch",
         "mail-type" : "END,FAIL",
         "mail-user" : "$USER@chalmers.se",
         "name"      : "DL.{rule}",
@@ -13,8 +13,7 @@
 
 "#documenation": {
         "#A": "----------------------------------------------------------------------------------",
-        "#raw_cmdline": "Use with: snakemake -j 99 --cluster-config cluster_config.json --cluster \"sbatch  -A {cluster.account} -p {cluster.partition} -t {cluster.time} -n {cluster.n} --mail-user {cluster.mail-user} --mail-type {cluster.mail-type} --error {cluster.error} --output {cluster.output}\"",
+        "#raw_cmdline": "Use with: nohup snakemake -j 99 --cluster-config cluster_config.json --cluster \"sbatch  -A {cluster.account} -p {cluster.partition} -t {cluster.time} -n {cluster.n} --error {cluster.error} --output {cluster.output}\" &",
         "#Z": "----------------------------------------------------------------------------------"
 },
 }
-
