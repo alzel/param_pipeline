@@ -12,3 +12,6 @@ minor fixes
 
 V7
 adds replicates parameter, intended for testing variablity of results at fixed parameters
+
+V8
+pure randomness
