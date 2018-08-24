@@ -1,3 +1,5 @@
+# V7: adds replicates at fixed param settings
+
 import re
 import os
 import glob
@@ -9,28 +11,28 @@ localrules: all, makeDefault, makeConfigs
 np.random.seed(123)
 ###generating parameters
 #alpha very important for sure 1
-a = config['params']['alpha']['a']
-n = config['params']['alpha']['n']
-r = np.around(a*np.random.rand(n), 3)
-ALPHA = np.unique(np.around(10 ** r, 5))
+#a = config['params']['alpha']['a']
+#n = config['params']['alpha']['n']
+#r = np.around(a*np.random.rand(n), 3)
+ALPHA = config['params']['alpha'] #ALPHA = np.unique(np.around(10 ** r, 5))
 
 #beta 1
 #beta = 1 - 10 ^ r
 #r[-a, -b] e.g. r E [-3, -1]
-a = config['params']['beta']['a']
-b = config['params']['beta']['b']
-n = config['params']['beta']['n']
-r = (a+1)*np.random.rand(n)
-BETA = np.unique(np.around(1 - 10 ** (r + b), 5))
+#a = config['params']['beta']['a']
+#b = config['params']['beta']['b']
+#n = config['params']['beta']['n']
+#r = (a+1)*np.random.rand(n)
+BETA = config['params']['beta'] #BETA = np.unique(np.around(1 - 10 ** (r + b), 5))
 
 #beta 2
 #beta = 1 - 10 ^ r
 #r[-a, -b] e.g. r E [-3, -1]
-a = config['params']['beta2']['a']
-b = config['params']['beta2']['b']
-n = config['params']['beta2']['n']
-r = (a+1)*np.random.rand(n)
-BETA2 = np.unique(np.around(1 - 10 ** (r + b), 5))
+#a = config['params']['beta2']['a']
+#b = config['params']['beta2']['b']
+#n = config['params']['beta2']['n']
+#r = (a+1)*np.random.rand(n)
+BETA2 = config['params']['beta2'] #BETA2 = np.unique(np.around(1 - 10 ** (r + b), 5))
 EPSILON = config['params']['epsilon']
 
 # decay can be set like beta but for inclusion of 0 and testing its manual
@@ -42,7 +44,9 @@ DROPOUT =  config['params']['dropout']
 LRS_DROP = config['params']['lrs_drop']
 LRS_TRESHOLD = config['params']['lrs_treshold']
 
-MODELS =  expand("results/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.csv",
+REPLICATE = config['params']['replicate']
+
+MODELS =  expand("results/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.csv",
                  dataset=config['input_files']['datasets'],
                  model=config['input_files']['models'],
                  alpha=ALPHA,
@@ -52,7 +56,8 @@ MODELS =  expand("results/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lr
                  lrs_drop=LRS_DROP,
                  lrs_treshold=LRS_TRESHOLD,
                  dropout=DROPOUT,
-                 mbatch=MBATCH)
+                 mbatch=MBATCH,
+                 replicate=REPLICATE)
 
 if not os.path.exists("logs"):
     os.makedirs("logs")
@@ -106,7 +111,7 @@ rule makeConfigs:
     input:
         "defaults/config_default.cfg"
     output:
-        "configs/config_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.cfg",
+        "configs/config_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.cfg",
     run:
         import configparser
         config_default = configparser.ConfigParser()
@@ -132,6 +137,7 @@ rule makeConfigs:
                 config.set('main', "LRS_TRESHOLD" , wildcards.lrs_treshold)
                 config.set('main', "DROPOUT" , wildcards.dropout)
                 config.set('main', "MBATCH" , wildcards.mbatch)
+                config.set('main', "REPLICATE" , wildcards.replicate)
 		config.write(configfile)
 
 #making directoris for params, whose are not automatic
@@ -144,13 +150,13 @@ rule run_model:
         template=config["input_files"]["template"],
         dataset=lambda wildcards: config["input_files"]["datasets"][wildcards.dataset],
         model=lambda wildcards: config["input_files"]["models"][wildcards.model],
-        config="configs/config_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.cfg"
+        config="configs/config_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.cfg"
     output:
-        results="results/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.csv"
+        results="results/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.csv"
     params:
-        weights="weights/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}"
+        weights="weights/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}"
     log:
-        log1="logs/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}.log"
+        log1="logs/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.log"
     run:
         import socket
         import getpass
