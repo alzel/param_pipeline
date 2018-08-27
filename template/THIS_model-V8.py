@@ -6,12 +6,11 @@
 
 # V8
 
-# FIX reproducibility issues
-
 
 # In[2]:
 
 
+# IMPORT INTIAL LIBRARIES
 #https://keras.io/getting-started/faq/#how-can-i-obtain-reproducible-results-using-keras-during-development
 #before importing any Keras modules !!
 
@@ -19,24 +18,123 @@ import numpy as np
 import tensorflow as tf
 import random
 
+def is_interactive():
+    import __main__ as main
+    return not hasattr(main, '__file__')
+
+import os
+#setting default path if interactive mode (run this cell only ONCE if in interactive mode)
+if is_interactive():
+    os.chdir("../")
+    
+import configparser
+import sys
+from os.path import basename
+
+
+# In[3]:
+
+
+# IMPORT VARIABLES
+
+#change only THESE
+model_path = "./models/THIS_model_input.py"
+data_path = "./data/THIS_data.npz"
+
+
+weights_dir = "./weights"
+results_dir = "./results"
+model_name = os.path.splitext(basename(model_path))[0]
+weight_path = os.path.join(weights_dir, model_name)
+csv_logger_path = os.path.join(results_dir, model_name + "_val_results.csv")
+test_results_path = os.path.join(results_dir, model_name + "_test_results.csv")
+
+for filename in [weight_path, csv_logger_path, test_results_path]:
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    
+args = (sys.argv)
+config_path = ""
+if not is_interactive():
+    model_path = args[1]
+    config_path = args[2]
+    weight_path = args[3]
+    csv_logger_path = args[4]
+    test_results_path = args[4] + "_testset"
+    data_path = args[5]
+    
+#suffix = "{epoch:03d}-{val_loss:.3f}.hdf5"
+suffix = "best.hdf5"
+weight_model_path = "{}.{}".format(weight_path, suffix)
+suffix2 = "last.hdf5"
+weight_model_path_last = "{}.{}".format(weight_path, suffix2)
+
+
+#hyperparameters   
+ALPHA = 0.1 # learnrate
+BETA = 0.999 # Adam
+BETA2 = 0.99
+EPSILON = 1e-6
+MBATCH = 100 # batch size
+DROPOUT = 0.1
+EPOCHS = 3 # epochs
+MIN_DELTA = 0.05
+PATIENCE = 30
+LRS_DROP = 0.5
+LRS_EPOCH_DROP = 10
+LRS_TRESHOLD = 20
+LRS = False # learning rate scheduler activation
+SHUFFLE = True
+MODEL_LOAD = True
+REPLICATE_SEED = 100
+
+#loading from config 
+if not is_interactive():
+    config_file = args[2]
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    ALPHA = config.getfloat('main', 'alpha')
+    BETA = config.getfloat('main', 'beta')
+    BETA2 = config.getfloat('main', 'beta2')
+    EPSILON = config.getfloat('main', 'epsilon')
+    MBATCH = config.getint('main', 'mbatch')
+    DROPOUT = config.getfloat('main', 'dropout')
+    EPOCHS = config.getint('main', 'epochs')
+    MIN_DELTA = config.getfloat('main', 'min_delta')
+    PATIENCE = config.getint('main', 'patience')
+    LRS_DROP = config.getfloat('main', 'lrs_drop')
+    LRS_EPOCH_DROP = config.getint('main', 'lrs_epoch_drop')
+    LRS_TRESHOLD = config.getint('main', 'lrs_treshold')    
+    LRS = config.getboolean('main', 'LRS')
+    SHUFFLE = config.getboolean('main', 'SHUFFLE')
+    MODEL_LOAD = config.getboolean('main', 'MODEL_LOAD')
+    REPLICATE_SEED = config.getint('main', 'REPLICATE_SEED')
+
+#loading model difinitions    
+model_file = open(model_path, 'r').read()
+exec(model_file)
+
+
+# In[4]:
+
+
 # The below is necessary in Python 3.2.3 onwards to
 # have reproducible behavior for certain hash-based operations.
 # See these references for further details:
 # https://docs.python.org/3.4/using/cmdline.html#envvar-PYTHONHASHSEED
 # https://github.com/keras-team/keras/issues/2280#issuecomment-306959926
 
-import os
-os.environ['PYTHONHASHSEED'] = '0'
+#import os
+os.environ['PYTHONHASHSEED'] = str(REPLICATE_SEED+1)
 
 # The below is necessary for starting Numpy generated random numbers
 # in a well-defined initial state.
 
-np.random.seed(122)
+np.random.seed(REPLICATE_SEED+2)
 
 # The below is necessary for starting core Python generated random numbers
 # in a well-defined state.
 
-random.seed(123)
+random.seed(REPLICATE_SEED+3)
 
 # Force TensorFlow to use single thread.
 # Multiple threads are a potential source of
@@ -57,7 +155,7 @@ from keras import backend as K
 # in the TensorFlow backend have a well-defined initial state.
 # For further details, see: https://www.tensorflow.org/api_docs/python/tf/set_random_seed
 
-tf.set_random_seed(124)
+tf.set_random_seed(REPLICATE_SEED+4)
 
 sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
 K.set_session(sess)
@@ -65,14 +163,10 @@ K.set_session(sess)
 # Rest of code follows ...
 
 
-# In[3]:
+# In[5]:
 
 
-def is_interactive():
-    import __main__ as main
-    return not hasattr(main, '__file__')
-
-## LIBRARIES
+## ADDITIONAL LIBRARIES
 import pandas as pd
 from scipy import stats
 
@@ -93,7 +187,7 @@ from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, EarlyStoppi
 from keras.metrics import mean_squared_error
 
 
-# In[4]:
+# In[6]:
 
 
 #to display train and validation metrics on same tensorboard plot
@@ -140,7 +234,7 @@ class TrainValTensorBoard(TensorBoard):
         self.val_writer.close()
 
 
-# In[5]:
+# In[7]:
 
 
 # define metrics and tests
@@ -196,102 +290,6 @@ def eval_on_test(X_test, Y_test, model, fname='', return_np=False):
     return loss
 
 
-# In[6]:
-
-
-import os
-#setting default path if interactive mode (run this cell only ONCE if in interactive mode)
-if is_interactive():
-    os.chdir("../")
-    
-
-
-# In[7]:
-
-
-import configparser
-import sys
-from os.path import basename
-
-#change only THESE
-model_path = "./models/THIS_model_input.py"
-data_path = "./data/THIS_data.npz"
-
-
-weights_dir = "./weights"
-results_dir = "./results"
-model_name = os.path.splitext(basename(model_path))[0]
-weight_path = os.path.join(weights_dir, model_name)
-csv_logger_path = os.path.join(results_dir, model_name + "_val_results.csv")
-test_results_path = os.path.join(results_dir, model_name + "_test_results.csv")
-
-for filename in [weight_path, csv_logger_path, test_results_path]:
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    
-args = (sys.argv)
-config_path = ""
-if not is_interactive():
-    model_path = args[1]
-    config_path = args[2]
-    weight_path = args[3]
-    csv_logger_path = args[4]
-    test_results_path = args[4] + "_testset"
-    data_path = args[5]
-    
-#suffix = "{epoch:03d}-{val_loss:.3f}.hdf5"
-suffix = "best.hdf5"
-weight_model_path = "{}.{}".format(weight_path, suffix)
-suffix2 = "last.hdf5"
-weight_model_path_last = "{}.{}".format(weight_path, suffix2)
-
-
-#hyperparameters    
-DROPOUT = 0 # dropout
-ALPHA = 0.1 # learnrate
-BETA = 0.999 # Adam
-BETA2 = 0.99
-EPSILON = 1e-6
-DECAY = 0.00001
-EPOCHS = 3 # epochs
-MBATCH = 100 # batch size
-MIN_DELTA = 0.05
-PATIENCE = 30
-LRS_DROP = 0.5
-LRS_EPOCH_DROP = 10
-LRS_TRESHOLD = 20
-# control
-SHUFFLE = True
-LRS = False # learning rate scheduler activation
-MODEL_LOAD = True
-
-
-#loading from config 
-if not is_interactive():
-    config_file = args[2]
-    config = configparser.ConfigParser()
-    config.read(config_file)
-    ALPHA = config.getfloat('main', 'alpha')
-    BETA = config.getfloat('main', 'beta')
-    BETA2 = config.getfloat('main', 'beta2')
-    EPSILON = config.getfloat('main', 'epsilon')
-    DECAY = config.getfloat('main', 'decay')
-    DROPOUT = config.getfloat('main', 'dropout')
-    EPOCHS = config.getint('main', 'epochs')
-    MBATCH = config.getint('main', 'mbatch')
-    MIN_DELTA = config.getfloat('main', 'min_delta')
-    PATIENCE = config.getint('main', 'patience')
-    LRS_DROP = config.getfloat('main', 'lrs_drop')
-    LRS_EPOCH_DROP = config.getint('main', 'lrs_epoch_drop')
-    LRS_TRESHOLD = config.getint('main', 'lrs_treshold')    
-    LRS = config.getboolean('main', 'LRS')
-    SHUFFLE = config.getboolean('main', 'SHUFFLE')
-    MODEL_LOAD = config.getboolean('main', 'MODEL_LOAD')
-
-#loading model difinitions    
-model_file = open(model_path, 'r').read()
-exec(model_file)
-
-
 # In[8]:
 
 
@@ -310,8 +308,7 @@ model.summary()
 # In[10]:
 
 
-#opt = SGD(lr=ALPHA, momentum=BETA, decay=0.0, nesterov=False)
-opt = Adam(lr=ALPHA, beta_1=BETA, beta_2=BETA2, epsilon=EPSILON, decay=DECAY)
+opt = Adam(lr=ALPHA, beta_1=BETA, beta_2=BETA2, epsilon=EPSILON, decay=0)
 model.compile(loss='mse', optimizer=opt, metrics=[coef_det_k, corr_coef_k])
 # lr_tmp = float(K.get_value(model.optimizer.lr))
 # print(lr_tmp)

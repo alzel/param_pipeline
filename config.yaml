@@ -1,8 +1,8 @@
 
 input_files:
   models:
-     FC_Xval : "models/THIS_model_FC.py"
-  template : "template/THIS_model-V7.ipynb"
+    THIS_model : "models/THIS_model_input.py"
+  template : "template/THIS_model-V8.ipynb"
   datasets :
     data1 : "data/data_min-system-boxcox_corrected_rsd2.npz"
 #default config output_dir
@@ -11,45 +11,38 @@ config_dir: "defaults"
 output_dir: "configs"
 
 params:
-  shuffle: False
-  model_load: False
-
-  mbatch: 64 #[64,128,256]
-  dropout: 0 #[0.1, 0.2, 0.3]
-  epochs: 500 #500
+# fixed
+  shuffle: True
+  model_load: True
 
 #early stopping
+  epochs: 500 #500
   min_delta: 0.01
   patience: 30
 
-#learning rates alpha
-#r = a*np.random.rand(n)
-#alpha = 10 ** r
-  alpha: 0.0001
-#   a: -3
-#   #b: 0
-#   n: 1 #8
-
-#momentum beta -> adam beta1
-#beta = 1 - 10 ^ r
-#r E [-a, -b] r.r. -3, -1
-  beta: 0.9
-#   a: -3
-#   b: 0
-#   n: 1 #6
-
-  beta2: 0.999
-#   a: -4
-#   b: -1
-#   n: 1 #6
-
-  epsilon: 1e-8 #[1e-2,1e-4,1e-6,1e-8]
-  decay: 0 #[0,0.0000001,0.00001,0.001]
-
 #learning rate scheduler
-  lrs : False
-  lrs_drop: 0 #[0.25,0.5,0.75,0.9]
-  lrs_treshold: 10 #[0,10,20,30]
+  lrs: True
   lrs_epoch_drop: 10
 
-  replicate: [1,2,3]
+# variable
+  alphaH: 1
+  alphaL: 1e-4
+  betaH: 0.95
+  betaL: 0.5
+  beta2H: 0.9995
+  beta2L: 0.9
+  epsilonH: 1e-2 # resolution not important
+  epsilonL: 1e-8
+
+  mbatchL: 16
+  mbatchH: 1024 # multiples of x2
+  dropoutL: 0.00
+  dropoutH: 0.50 # 0.xx resolution
+  lrs_tresholdL: 0
+  lrs_tresholdH: 50 # resolution 1
+  lrs_dropL: 0.00
+  lrs_dropH: 0.99
+
+#replicates
+  replicate_seed: [100,200,300]
+  configs_n: 3

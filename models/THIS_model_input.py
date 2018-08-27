@@ -32,7 +32,7 @@ def POC_model(input_shape_hot,DR):
     X_input1 = Input(shape = input_shape_hot)
 
     # L 1: CONV
-    X1 = Conv1D(filters=128, kernel_size=30, strides=1, activation='relu')(X_input1) # 620/1 + 1 = 621
+    X1 = Conv1D(filters=128, kernel_size=10, strides=1, activation='relu')(X_input1) # 620/1 + 1 = 621
     X1 = BatchNormalization()(X1)
     X1 = Dropout(DR)(X1)
 

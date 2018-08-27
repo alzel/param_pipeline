@@ -1,4 +1,4 @@
-# V7: adds replicates at fixed param settings
+# V8: pure randomness
 
 import re
 import os
@@ -8,56 +8,73 @@ configfile: "config.yaml"
 
 localrules: all, makeDefault, makeConfigs
 
-np.random.seed(123)
-###generating parameters
-#alpha very important for sure 1
-#a = config['params']['alpha']['a']
-#n = config['params']['alpha']['n']
-#r = np.around(a*np.random.rand(n), 3)
-ALPHA = config['params']['alpha'] #ALPHA = np.unique(np.around(10 ** r, 5))
+# number of seeds defines number of replicates, seed given in filenames
+N = config['params']['configs_n']
+REPLICATE_SEED = config['params']['replicate_seed']
 
-#beta 1
-#beta = 1 - 10 ^ r
-#r[-a, -b] e.g. r E [-3, -1]
-#a = config['params']['beta']['a']
-#b = config['params']['beta']['b']
-#n = config['params']['beta']['n']
-#r = (a+1)*np.random.rand(n)
-BETA = config['params']['beta'] #BETA = np.unique(np.around(1 - 10 ** (r + b), 5))
+# parameter limits
+# log
+alphaH = config['params']['alphaH']
+alphaL = config['params']['alphaL']
+betaH = config['params']['betaH']
+betaL = config['params']['betaL']
+beta2H = config['params']['beta2H']
+beta2L = config['params']['beta2L']
+epsilonH = config['params']['epsilonH']
+epsilonL = config['params']['epsilonL']
+# lin
+mbatchL = config['params']['mbatchH']
+mbatchH = config['params']['mbatchL']
+dropoutL = config['params']['dropoutH']
+dropoutH = config['params']['dropoutL']
+lrs_tresholdL = config['params']['lrs_tresholdH']
+lrs_tresholdH = config['params']['lrs_tresholdL']
+lrs_dropL = config['params']['lrs_dropH']
+lrs_dropH = config['params']['lrs_dropL']
 
-#beta 2
-#beta = 1 - 10 ^ r
-#r[-a, -b] e.g. r E [-3, -1]
-#a = config['params']['beta2']['a']
-#b = config['params']['beta2']['b']
-#n = config['params']['beta2']['n']
-#r = (a+1)*np.random.rand(n)
-BETA2 = config['params']['beta2'] #BETA2 = np.unique(np.around(1 - 10 ** (r + b), 5))
-EPSILON = config['params']['epsilon']
+# generate hyperparameter combinations
+ALPHA = np.zeros((N,1))
+BETA = np.zeros((N,1))
+BETA2 = np.zeros((N,1))
+EPSILON = np.zeros((N,1))
+MBATCH = np.zeros((N,1))
+DROPOUT = np.zeros((N,1))
+LRS_TRESHOLD = np.zeros((N,1))
+LRS_DROP = np.zeros((N,1))
+PARAMS = []
+seps = ':'
 
-# decay can be set like beta but for inclusion of 0 and testing its manual
-#DECAY = config['params']['decay'] # succeded by LRS
+for i in range(N):
+    LRS_DROP[i] = np.round(np.random.uniform(lrs_dropL, lrs_dropH),2)
+    LRS_TRESHOLD[i] = np.int(np.round(np.random.uniform(lrs_tresholdL, lrs_tresholdH),0))
+    DROPOUT[i] = np.round(np.random.uniform(dropoutL, dropoutH),2)
+    MBATCH[i] = np.int(2**np.round(np.random.uniform(np.log2(mbatchL), np.log2(mbatchH))))
+    EPSILON[i] = 10**np.random.uniform(np.log10(np.float(epsilonL)), np.log10(np.float(epsilonH)))
+    BETA2[i] = 1-10**np.random.uniform(np.log10(1-beta2L), np.log10(1-beta2H))
+    BETA[i] = 1-10**np.random.uniform(np.log10(1-betaL), np.log10(1-betaH))
+    ALPHA[i] = 10**np.random.uniform(np.log10(np.float(alphaL)), np.log10(np.float(alphaH)))
 
-MBATCH = config['params']['mbatch']
-DROPOUT =  config['params']['dropout']
+    # each combination is a specific configuration
+    PARAMS.append(str(ALPHA[i])[1:-1]+seps+
+                str(BETA[i])[1:-1]+seps+
+                str(BETA2[i])[1:-1]+seps+
+                str(EPSILON[i])[1:-1]+seps+
+                str(MBATCH[i])[1:-2]+seps+
+                str(DROPOUT[i])[1:-1]+seps+
+                str(LRS_TRESHOLD[i])[1:-2]+seps+
+                str(LRS_DROP[i])[1:-1])
 
-LRS_DROP = config['params']['lrs_drop']
-LRS_TRESHOLD = config['params']['lrs_treshold']
-
-REPLICATE = config['params']['replicate']
-
-MODELS =  expand("results/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.csv",
+MODELS =  expand("results/{dataset}/{model}_{params}_{replicate_seed}.csv",
                  dataset=config['input_files']['datasets'],
                  model=config['input_files']['models'],
-                 alpha=ALPHA,
-                 beta=BETA,
-                 beta2=BETA2,
-                 epsilon=EPSILON,
-                 lrs_drop=LRS_DROP,
-                 lrs_treshold=LRS_TRESHOLD,
-                 dropout=DROPOUT,
-                 mbatch=MBATCH,
-                 replicate=REPLICATE)
+                 params=PARAMS,
+                 replicate_seed=REPLICATE_SEED)
+
+# CONFIGS =  expand("configs/config_{params}_{replicate_seed}.cfg",
+#                  #dataset=config['input_files']['datasets'],
+#                  #model=config['input_files']['models'],
+#                  params=PARAMS,
+#                  replicate_seed=REPLICATE_SEED)
 
 if not os.path.exists("logs"):
     os.makedirs("logs")
@@ -65,6 +82,7 @@ if not os.path.exists("logs"):
 rule all:
     input:
         MODELS
+        #CONFIGS
 
 #saving defualt params
 rule makeDefault:
@@ -87,15 +105,6 @@ rule makeDefault:
             with open(output[0], 'w') as configfile:
 
                 config_new = configparser.RawConfigParser()
-
-#                adam_beta1= config['params']['adam']['beta1']
-#                adam_beta2= config['params']['adam']['beta2']
-#                adam_epsilon = config['params']['adam']['epsilon']
-                #adam
-#                config_new.add_section('adam')
-#                config_new.set('adam', "BETA1" , adam_beta1)
-#                config_new.set('adam', "BETA2" , adam_beta2)
-#                config_new.set('adam', "EPSILON" , adam_epsilon)
                 config_new.add_section('main')
                 config_new.set('main', "SHUFFLE" , config['params']['shuffle'] )
                 config_new.set('main', "MODEL_LOAD" , config['params']['model_load'] )
@@ -104,14 +113,13 @@ rule makeDefault:
                 config_new.set('main', "EPOCHS" , config['params']['epochs'])
                 config_new.set('main', "MIN_DELTA" , config['params']['min_delta'])
                 config_new.set('main', "PATIENCE" , config['params']['patience'])
-                config_new.set('main', "DECAY" , config['params']['decay'])
                 config_new.write(configfile)
 
 rule makeConfigs:
     input:
         "defaults/config_default.cfg"
     output:
-        "configs/config_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.cfg",
+        "configs/config_{params}_{replicate_seed}.cfg"
     run:
         import configparser
         config_default = configparser.ConfigParser()
@@ -129,16 +137,17 @@ rule makeConfigs:
                     for key, value in config_default.items(section):
                         config.set(section, key, value)
 
-                config.set('main', "ALPHA" , wildcards.alpha)
-                config.set('main', "BETA" , wildcards.beta)
-                config.set('main', "BETA2" , wildcards.beta2)
-                config.set('main', "EPSILON" , wildcards.epsilon)
-                config.set('main', "LRS_DROP" , wildcards.lrs_drop)
-                config.set('main', "LRS_TRESHOLD" , wildcards.lrs_treshold)
-                config.set('main', "DROPOUT" , wildcards.dropout)
-                config.set('main', "MBATCH" , wildcards.mbatch)
-                config.set('main', "REPLICATE" , wildcards.replicate)
-		config.write(configfile)
+                tmp = wildcards.params.split(seps)
+                config.set('main', "ALPHA" , tmp[0])
+                config.set('main', "BETA" , tmp[1])
+                config.set('main', "BETA2" , tmp[2])
+                config.set('main', "EPSILON" , tmp[3])
+                config.set('main', "MBATCH" , tmp[4])
+                config.set('main', "DROPOUT" , tmp[5])
+                config.set('main', "LRS_TRESHOLD" , tmp[6])
+                config.set('main', "LRS_DROP" , tmp[7])
+                config.set('main', "REPLICATE_SEED" , wildcards.replicate_seed)
+                config.write(configfile)
 
 #making directoris for params, whose are not automatic
 import os
@@ -150,13 +159,13 @@ rule run_model:
         template=config["input_files"]["template"],
         dataset=lambda wildcards: config["input_files"]["datasets"][wildcards.dataset],
         model=lambda wildcards: config["input_files"]["models"][wildcards.model],
-        config="configs/config_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.cfg"
+        config="configs/config_{params}_{replicate_seed}.cfg"
     output:
-        results="results/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.csv"
+        results="results/{dataset}/{model}_{params}_{replicate_seed}.csv"
     params:
-        weights="weights/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}"
+        weights="weights/{dataset}/{model}_{params}_{replicate_seed}"
     log:
-        log1="logs/{dataset}/{model}_{alpha}_{beta}_{beta2}_{epsilon}_{lrs_drop}_{lrs_treshold}_{dropout}_{mbatch}_{replicate}.log"
+        log1="logs/{dataset}/{model}_{params}_{replicate_seed}.log"
     run:
         import socket
         import getpass
