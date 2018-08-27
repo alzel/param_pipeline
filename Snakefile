@@ -55,14 +55,14 @@ for i in range(N):
     ALPHA[i] = 10**np.random.uniform(np.log10(np.float(alphaL)), np.log10(np.float(alphaH)))
 
     # each combination is a specific configuration
-    PARAMS.append(str(ALPHA[i])[1:-1]+seps+
+    PARAMS.append((str(ALPHA[i])[1:-1]+seps+
                 str(BETA[i])[1:-1]+seps+
                 str(BETA2[i])[1:-1]+seps+
                 str(EPSILON[i])[1:-1]+seps+
                 str(MBATCH[i])[1:-2]+seps+
                 str(DROPOUT[i])[1:-1]+seps+
                 str(LRS_TRESHOLD[i])[1:-2]+seps+
-                str(LRS_DROP[i])[1:-1])
+                str(LRS_DROP[i])[1:-1]).replace(" ", ""))
 
 MODELS =  expand("results/{dataset}/{model}_{params}_{replicate_seed}.csv",
                  dataset=config['input_files']['datasets'],
