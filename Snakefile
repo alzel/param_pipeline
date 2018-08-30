@@ -7,6 +7,7 @@ import numpy as np
 configfile: "config.yaml"
 
 localrules: all, makeDefault, makeConfigs
+np.random.seed(config['params']['random_seed'])
 
 # number of seeds defines number of replicates, seed given in filenames
 N = config['params']['configs_n']
