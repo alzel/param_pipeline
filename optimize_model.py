@@ -14,15 +14,15 @@ import tensorflow as tf
 from tensorflow.contrib.training import HParams
 from keras.optimizers import Adam
 from my_utils import coef_det_k, best_check, TrainValTensorBoard
-from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, EarlyStopping, LearningRateScheduler
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.callbacks import LearningRateScheduler
 from keras.utils import multi_gpu_model
 
 import argparse
-#exec("my_utils.py")
 
 config = tf.ConfigProto()
-config.gpu_options.allow_growth=True
+config.gpu_options.allow_growth = True
+config.log_device_placement = True
 sess = tf.Session(config=config)
 
 parser = argparse.ArgumentParser(description='Train my model.')
@@ -50,12 +50,12 @@ parser.add_argument('--tensorboard_dir',
 parser.add_argument('--experiment_no',
                     type=str,
                     default="1",
-                    help = "name of experiment")
+                    help="name of experiment")
 
 parser.add_argument('--REPLICATE_SEED',
                     type=int,
                     default=123,
-                    help = "SEED number")
+                    help="SEED number")
 parser.add_argument('--multi_gpu',
                     type=int,
                     default=None,
@@ -70,21 +70,33 @@ parser.add_argument('--hparams', type=str,
 
 parser.add_argument('--hashmap', type=str,
                     help='Save hashes')
+
 parser.add_argument('--results', type=str,
-                    required=True, help="Results file")
+                    required=True, help="Results filename of talos.Scan object")
+
+parser.add_argument('--results_csv', type=str,
+                    help="Results filename ")
+
+parser.add_argument('--val_split', default=0.1, type=float,
+                    help="Validation split")
+
+parser.add_argument('--grid_downsample', default=0.001, type=float,
+                    help="Grid downsample, percent of full grid to sample")
+
+parser.add_argument('--verbose', default=0, type=int, choices=[0, 1, 2],
+                    help="Verbosity level of training")
 
 args = parser.parse_args()
-sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
 
-#callback directories
+
+# callback directories
 if not os.path.exists(args.model_ckpt_dir):
     os.makedirs(args.model_ckpt_dir)
 
 if not os.path.exists(args.tensorboard_dir):
     os.makedirs(args.tensorboard_dir)
 
-
-#setting seeds
+# setting seeds
 REPLICATE_SEED = args.REPLICATE_SEED
 os.environ['PYTHONHASHSEED'] = str(REPLICATE_SEED + 1)
 np.random.seed(REPLICATE_SEED + 2)
@@ -93,32 +105,30 @@ tf.set_random_seed(REPLICATE_SEED + 4)
 
 
 def get_section_hparams(ub, lb, n):
-    params = None
-    #for alphas, epsilon
+    # for alphas, epsilon
     if isinstance(n, int) and (isinstance(ub, float) or isinstance(lb, float)) and \
             ub - lb <= 0.1 and lb > 0:
-        params = 1 - 10 ** np.random.uniform(np.log10(1 - lb), np.log10(1 - ub), n)
-    #for betas, betas2
+        prams = 1 - 10 ** np.random.uniform(np.log10(1 - lb), np.log10(1 - ub), n)
+    # for betas, betas2
     elif isinstance(n, int) and (isinstance(ub, float) or isinstance(lb, float)) and \
             ub - lb <= 1 and lb > 0:
-        params = 10 ** np.random.uniform(np.log10(lb), np.log10(ub), n)
+        prams = 10 ** np.random.uniform(np.log10(lb), np.log10(ub), n)
     # for dropouts
     elif isinstance(n, float):
-        params = np.arange(lb, ub+0.0001, n)
+        prams = np.arange(lb, ub + 0.0001, n)
     else:
-    #for etc
-        precition = 0 if ub > 1 else 2
-        params = np.round(np.random.uniform(lb, ub, n), precition)
-    return (params.tolist())
+        # for etc
+        precision = 0 if ub > 1 else 2
+        prams = np.round(np.random.uniform(lb, ub, n), precision)
+    return prams.tolist()
+
 
 def wrapped_model(x_train, y_train, x_val, y_val, p):
-
     x_train = x_train[:, :int(p['data_split']) + 1, :]
     model = POC_model(x_train, y_train, x_val, y_val, p)
 
     file_name = os.path.splitext(os.path.basename(args.data))[0] + "_" + \
                 os.path.splitext(os.path.basename(args.model))[0] + "_" + args.experiment_no
-
 
     if args.multi_gpu:
         model = multi_gpu_model(model, gpus=2)
@@ -127,15 +137,14 @@ def wrapped_model(x_train, y_train, x_val, y_val, p):
                   loss='mse',
                   metrics=[coef_det_k])
 
-
-    #coding parameters to hash tring
+    # coding parameters to hash tring
     my_keys = sorted(list(p.keys()))
-    #['{}_{}'.format(k, v) for k, v in d.iteritems()]
+
     param_string = ','.join(["{!s}={!r}".format(key, p[key]) for key in my_keys])
     hash_object = hashlib.md5(param_string.encode())
-    print(param_string)
+
     file_name = file_name + '_' + hash_object.hexdigest()
-    #save to hashmap
+    # save to hashmap
     if args.hashmap:
         fieldnames = ["file_name"] + my_keys
         if not os.path.isfile(args.hashmap):
@@ -158,25 +167,26 @@ def wrapped_model(x_train, y_train, x_val, y_val, p):
             if epoch > treshold:
                 lr *= pow(1 - drop, 1 / epoch_drop)
             return float(lr)
+
         call_backs.append(LearningRateScheduler(schedule))
 
     out = model.fit(x_train, y_train,
                     batch_size=int(p['mbatch']),
                     epochs=int(p['epochs']),
-                    verbose=1,
+                    verbose=args.verbose,
                     validation_data=[x_val, y_val],
                     callbacks=call_backs)
 
     return out, model
 
-def create_hparams():
 
+def create_hparams():
     """Create the hparams object for generic training hyperparameters."""
     hparams = HParams(
-        mbatch = [256],
-        lr = [0.1],
-        epochs = 200,
-        dropout = [0.40])
+        mbatch=[256],
+        lr=[0.1],
+        epochs=200,
+        dropout=[0.40])
 
     # Config file overrides any of preceding hyperparameter values
     if args.param_config:
@@ -185,7 +195,7 @@ def create_hparams():
 
             section = 'default'
             if section in cfg:
-                for k,v in cfg[section].items():
+                for k, v in cfg[section].items():
                     if hparams.__contains__(k):
                         hparams.set_hparam(k, v)
                     else:
@@ -232,15 +242,21 @@ lines = "\n".join([inspect.getsource(i) for i in [POC_model, wrapped_model]])
 relevant_params = set(re.findall("p\['(\w+)'\]", lines))
 params = {k: params[k] for k in relevant_params}
 
+dataset_name = os.path.splitext(os.path.basename(args.data))[0] + "_" + \
+               os.path.splitext(os.path.basename(args.model))[0]
+
+if args.results_csv:
+    dataset_name = args.results_csv
 
 h = ta.Scan(X_train, Y_train,
             params=params,
             model=wrapped_model,
-            dataset_name=args.data,
+            dataset_name=dataset_name,
             experiment_no=args.experiment_no,
-            val_split=0.1,
-            grid_downsample=0.001/5)
+            val_split=args.val_split,
+            grid_downsample=args.grid_downsample
+            )
 
-
+# saving results
 with open(args.results, "wb") as f:
     pickle.dump(h, f, pickle.HIGHEST_PROTOCOL)
