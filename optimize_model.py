@@ -1,4 +1,4 @@
-import talos as ta
+from comet_ml import Optimizer, Experiment
 import hashlib
 import csv
 import pickle
@@ -12,13 +12,15 @@ import inspect
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.training import HParams
+import keras.backend as K
 from keras.optimizers import Adam
-from my_utils import coef_det_k, best_check, TrainValTensorBoard
-from keras.callbacks import ModelCheckpoint, EarlyStopping
+from my_utils import coef_det_k, best_check, TrainValTensorBoard, MyCSVLogger
+from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard, CSVLogger
 from keras.callbacks import LearningRateScheduler
 from keras.utils import multi_gpu_model
-
+from keras.utils.generic_utils import slice_arrays
 import argparse
+
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
@@ -40,11 +42,12 @@ parser.add_argument('-d',
 parser.add_argument('--model_ckpt_dir',
                     type=str,
                     default="model_weights",
+                    required=True,
                     help="Directory to store model checkpoints")
 
 parser.add_argument('--tensorboard_dir',
                     type=str,
-                    default="tensorboard",
+                    default=None,
                     help="Directory to store logs/tensorboard")
 
 parser.add_argument('--experiment_no',
@@ -52,49 +55,60 @@ parser.add_argument('--experiment_no',
                     default="1",
                     help="name of experiment")
 
+parser.add_argument('--CHUNKS',
+                    type=int,
+                    default=1,
+                    help="Chunks")
+
 parser.add_argument('--REPLICATE_SEED',
                     type=int,
                     default=123,
                     help="SEED number")
+
 parser.add_argument('--multi_gpu',
                     type=int,
                     default=None,
+                    choices=[2,4],
                     help="Specify number of GPU in multi_gpu_model")
 
 parser.add_argument('--param_config',
                     type=str,
-                    help="config file for parameter bounds")
+                    help="config file for parameter bounds in PCS format")
 
-parser.add_argument('--hparams', type=str,
-                    help='Comma separated list of "name=value" pairs of model hyper parameters.')
-
-parser.add_argument('--hashmap', type=str,
-                    help='Save hashes')
-
-parser.add_argument('--results', type=str,
-                    required=True, help="Results filename of talos.Scan object")
-
-parser.add_argument('--results_csv', type=str,
-                    help="Results filename ")
-
-parser.add_argument('--val_split', default=0.1, type=float,
+parser.add_argument('--validation_split', default=0.1, type=float,
                     help="Validation split")
-
-parser.add_argument('--grid_downsample', default=0.001, type=float,
-                    help="Grid downsample, percent of full grid to sample")
 
 parser.add_argument('--verbose', default=0, type=int, choices=[0, 1, 2],
                     help="Verbosity level of training")
 
+parser.add_argument('--optimizer_iterations', default=10000, type=int,
+                    help="Number of optimizer iterations")
+
+parser.add_argument('--project_name', default="default", type=str,
+                    help="Comet ML projectname")
+
+parser.add_argument('--api_key',
+                    required=True,
+                    type=str,
+                    help="Comet ML API KEY")
+
+parser.add_argument('--workspace',
+                    default='alzel',
+                    type=str,
+                    help="Comet ML workspace")
+
+parser.add_argument('--output_file',
+                    required=True,
+                    help="Output filename")
+
 args = parser.parse_args()
 
-
 # callback directories
-if not os.path.exists(args.model_ckpt_dir):
-    os.makedirs(args.model_ckpt_dir)
+if args.model_ckpt_dir:
+    os.makedirs(args.model_ckpt_dir, exist_ok=True)
 
-if not os.path.exists(args.tensorboard_dir):
-    os.makedirs(args.tensorboard_dir)
+if args.tensorboard_dir:
+    os.makedirs(args.tensorboard_dir, exist_ok=True)
 
 # setting seeds
 REPLICATE_SEED = args.REPLICATE_SEED
@@ -103,160 +117,127 @@ np.random.seed(REPLICATE_SEED + 2)
 random.seed(REPLICATE_SEED + 3)
 tf.set_random_seed(REPLICATE_SEED + 4)
 
+API_KEY = args.api_key
+PROJECT_NAME = args.project_name
+WORKSPACE = args.workspace
 
-def get_section_hparams(ub, lb, n):
-    # for alphas, epsilon
-    if isinstance(n, int) and (isinstance(ub, float) or isinstance(lb, float)) and \
-            ub - lb <= 0.1 and lb > 0:
-        prams = 1 - 10 ** np.random.uniform(np.log10(1 - lb), np.log10(1 - ub), n)
-    # for betas, betas2
-    elif isinstance(n, int) and (isinstance(ub, float) or isinstance(lb, float)) and \
-            ub - lb <= 1 and lb > 0:
-        prams = 10 ** np.random.uniform(np.log10(lb), np.log10(ub), n)
-    # for dropouts
-    elif isinstance(n, float):
-        prams = np.arange(lb, ub + 0.0001, n)
+
+def split_data(x, y, validation_split=0.1):
+    if validation_split and 0. < validation_split < 1.:
+        split_at = int(len(x[:]) * (1. - validation_split))
+        x, x_val = (x[0:split_at, :, :], x[split_at:, :, :])
+        y, y_val = (y[0:split_at], y[split_at:])
     else:
-        # for etc
-        precision = 0 if ub > 1 else 2
-        prams = np.round(np.random.uniform(lb, ub, n), precision)
-    return prams.tolist()
+        raise ValueError("validation_split must be [0,1)")
+    return x, x_val, y, y_val
 
 
-def wrapped_model(x_train, y_train, x_val, y_val, p):
-    x_train = x_train[:, :int(p['data_split']) + 1, :]
-    model = POC_model(x_train, y_train, x_val, y_val, p)
-
-    file_name = os.path.splitext(os.path.basename(args.data))[0] + "_" + \
-                os.path.splitext(os.path.basename(args.model))[0] + "_" + args.experiment_no
+def wrapped_model(x=None, y=None, x_val=None, y_val=None, p=None):
+    model = POC_model(x.shape[1:3], p)
 
     if args.multi_gpu:
-        model = multi_gpu_model(model, gpus=2)
+        model = multi_gpu_model(model, gpus=args.multi_gpu)
 
-    model.compile(optimizer=Adam(lr=p['lr'], beta_1=p['beta_1'], beta_2=p['beta_2'], epsilon=p['epsilon']),
-                  loss='mse',
-                  metrics=[coef_det_k])
+    model.compile(optimizer=Adam(lr=float(p['lr']), beta_1=float(p['beta_1']), beta_2=float(p['beta_2']),
+                                 epsilon=float(p['epsilon'])), loss='mse', metrics=[coef_det_k])
 
-    # coding parameters to hash tring
-    my_keys = sorted(list(p.keys()))
-
-    param_string = ','.join(["{!s}={!r}".format(key, p[key]) for key in my_keys])
+    my_keys = sorted(list(suggestion.params.keys()))
+    param_string = ','.join(["{!s}={!r}".format(key, suggestion[key]) for key in my_keys])
     hash_object = hashlib.md5(param_string.encode())
 
-    file_name = file_name + '_' + hash_object.hexdigest()
-    # save to hashmap
-    if args.hashmap:
-        fieldnames = ["file_name"] + my_keys
-        if not os.path.isfile(args.hashmap):
-            with open(args.hashmap, 'w') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(fieldnames)
-        with open(args.hashmap, 'a') as csvfile:
-            param_dict = {**{'file_name': file_name}, **p}
-            writer = csv.writer(csvfile)
-            writer.writerow([param_dict[k] for k in fieldnames])
+    #file_names for callbacks
+    file_name = os.path.splitext(os.path.basename(args.output_file))[0]
+    model_ckpt_file = os.path.join(args.model_ckpt_dir, file_name + hash_object.hexdigest())
 
-    call_backs = [ModelCheckpoint(filepath=os.path.join(args.model_ckpt_dir, file_name), **best_check),
-                  EarlyStopping(monitor='val_loss', min_delta=p['min_delta'], patience=p['patience']),
-                  TrainValTensorBoard(log_dir=os.path.join(args.tensorboard_dir, file_name))]
-    if p['lrs']:
-        def schedule(epoch, lr):
-            treshold = p['lrs_threshold']
-            drop = p['lrs_drop']
-            epoch_drop = p['lrs_epoch_drop']
-            if epoch > treshold:
-                lr *= pow(1 - drop, 1 / epoch_drop)
-            return float(lr)
+    hpars = {k: np.array(suggestion.params[k][0]) for k in suggestion.params.keys()}
+    hpars['md5'] = np.array(hash_object.hexdigest())
 
-        call_backs.append(LearningRateScheduler(schedule))
+    call_backs = [EarlyStopping(monitor='val_loss', min_delta=float(p['min_delta']), patience=int(p['patience'])),
+                  ModelCheckpoint(filepath=model_ckpt_file, **best_check),
+                  MyCSVLogger(filename=args.output_file, hpars=hpars, separator=",", append=True)]
 
-    out = model.fit(x_train, y_train,
-                    batch_size=int(p['mbatch']),
-                    epochs=int(p['epochs']),
-                    verbose=args.verbose,
-                    validation_data=[x_val, y_val],
-                    callbacks=call_backs)
+    if args.tensorboard_dir:
+        call_backs.append(TrainValTensorBoard(log_dir=os.path.join(args.tensorboard_dir, file_name + hash_object.hexdigest()),
+                                              histogram_freq=10,
+                                              write_grads=True))
+    model.fit(x, y,
+              batch_size=int(p['mbatch']),
+              epochs=int(p['epochs']),
+              verbose=args.verbose,
+              validation_data=[x_val, y_val],
+              callbacks=call_backs)
 
-    return out, model
+    return model
 
 
-def create_hparams():
-    """Create the hparams object for generic training hyperparameters."""
-    hparams = HParams(
-        mbatch=[256],
-        lr=[0.1],
-        epochs=200,
-        dropout=[0.40])
-
-    # Config file overrides any of preceding hyperparameter values
-    if args.param_config:
-        with open(args.param_config) as fp:
-            cfg = YAML().load(fp)
-
-            section = 'default'
-            if section in cfg:
-                for k, v in cfg[section].items():
-                    if hparams.__contains__(k):
-                        hparams.set_hparam(k, v)
-                    else:
-                        hparams.add_hparam(k, v)
-            section = 'sampling'
-            schema = ['ub', 'lb', 'n']
-            if section in cfg:
-                for k in cfg[section].keys():
-                    if isinstance(cfg[section][k], Iterable) and all(s in cfg[section][k] for s in schema):
-                        v = get_section_hparams(ub=cfg[section][k]['ub'],
-                                                lb=cfg[section][k]['lb'],
-                                                n=cfg[section][k]['n'])
-                        if hparams.__contains__(k):
-                            hparams.set_hparam(k, v)
-                        else:
-                            hparams.add_hparam(k, v)
-    # Command line flags override any of the preceding hyperparameter values.
-    if args.hparams:
-        hparams = hparams.parse(args.hparams)
-    json_string = hparams.to_json()
-    prms = json.loads(json_string)
-    for k, v in prms.items():
-        prms[k] = list(np.atleast_1d(v))
-
-    return prms
+def create_hparams(file_path):
+    """Loads generic training hyperparameters."""
+    with open(file_path, "r") as pcs_file:
+        pcs_content = pcs_file.read()
+    return pcs_content
 
 
-p_default = create_hparams()
-# loading model
+# loading model it's params and data
 data_path = args.data
 model_name = os.path.splitext(os.path.basename(args.model))[0]
 exec("from models." + model_name + " import POC_model, load_data, Params")
 X_train, X_test, Y_train, Y_test = load_data(data_path)
 
+# splitting validation data
+x, x_val, y, y_val = split_data(x=X_train, y=Y_train, validation_split=args.validation_split)
+
+p_default = create_hparams(args.param_config)
 p_specific = Params()
-
-if 'chunks' in p_default:
-    p_specific['data_split'] = [i[-1] for i in np.array_split(range(X_train.shape[1]), p_default['chunks'][0])]
-
-params = {**p_default, **p_specific}
+params = p_default + p_specific
 
 # filters only defined parameters
 lines = "\n".join([inspect.getsource(i) for i in [POC_model, wrapped_model]])
 relevant_params = set(re.findall("p\['(\w+)'\]", lines))
-params = {k: params[k] for k in relevant_params}
+params = "\n".join([line for line in params.splitlines() for k in relevant_params if re.search(r'\b{0}\b'.format(k), line)])
 
-dataset_name = os.path.splitext(os.path.basename(args.data))[0] + "_" + \
-               os.path.splitext(os.path.basename(args.model))[0]
+if args.CHUNKS:  # adding chunks
+    data_split_lst = [str(i[-1]) for i in np.array_split(range(x.shape[1]), args.CHUNKS)]
+    data_split_param = "data_split categorical {" + ",".join(data_split_lst) + "}" + " [{}]\n".format(data_split_lst[0])
+    params = params + '\n' + data_split_param
 
-if args.results_csv:
-    dataset_name = args.results_csv
+comet_optimizer = Optimizer(API_KEY)
+comet_optimizer.set_params(params)
 
-h = ta.Scan(X_train, Y_train,
-            params=params,
-            model=wrapped_model,
-            dataset_name=dataset_name,
-            experiment_no=args.experiment_no,
-            val_split=args.val_split,
-            grid_downsample=args.grid_downsample
-            )
+n = 0
+while n < args.optimizer_iterations:
+    print(f'Starting Iteration {n}')
 
-# saving results
-with open(args.results, "wb") as f:
-    pickle.dump(h, f, pickle.HIGHEST_PROTOCOL)
+    experiment = Experiment(
+        api_key=API_KEY,
+        workspace=WORKSPACE,
+        project_name=PROJECT_NAME)
+
+    suggestion = comet_optimizer.get_suggestion()
+
+    x_chunk = x[:, :int(suggestion['data_split']) + 1, :]
+    x_val_chunk = x_val[:, :int(suggestion['data_split']) + 1, :]
+
+    model = wrapped_model(x=x_chunk, x_val=x_val_chunk, y=y, y_val=y_val, p=suggestion)
+    val_mse, val_coef_det = model.evaluate(x_val_chunk, y_val, batch_size=suggestion['mbatch'])
+
+    # testing
+    test_mse, test_coef_det = model.evaluate(X_test[:, :int(suggestion['data_split']) + 1, :], Y_test,
+                                             batch_size=suggestion['mbatch'])
+    K.clear_session()  # because of tensorboard callbacks it dies otherwise
+
+    metrics = {
+        'val_mse': val_mse,
+        'val_coef_det': val_coef_det,
+        'test_mse': test_mse,
+        'test_coef_det': test_coef_det
+    }
+
+    experiment.log_multiple_metrics(metrics)
+    suggestion.report_score('val_mse', val_mse)
+
+    print('Val mse:', val_mse)
+    print('Val coef_det:', val_coef_det)
+    print('Test mse:', test_mse)
+    print('Test coef_det:', test_coef_det)
+
+    n += 1

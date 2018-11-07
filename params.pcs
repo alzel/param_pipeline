@@ -1,0 +1,15 @@
+#https://www.comet.ml/docs/python-sdk/pcs-file/
+epochs ordinal {1000} [1000]
+lr real [0.0001, 0.01] [0.0001] log
+beta_1 real [0.5, 0.95] [0.95]
+beta_2 real [0.9, 0.9995] [0.9] log
+epsilon ordinal {1e-8, 1e-7} [1e-7]
+mbatch categorical {64, 128, 256, 512} [128]
+dropout real [0, 1] [0.5]
+lrs_threshold real [0, 50] [30]
+lrs_drop real [0, 0.99] [0.3]
+lrs_epoch_drop ordinal {10} [10]
+min_delta ordinal {0.01} [0.01]
+patience ordinal {50} [50]
+
+
