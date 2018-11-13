@@ -1,49 +1,27 @@
-
 input_files:
   models:
-    THIS_model : "models/THIS_model_input.py"
-  template : "template/THIS_model-V8.ipynb"
-  datasets :
-    data1 : "data/data_min-system-boxcox_corrected_rsd2.npz"
-#default config output_dir
-config_dir: "defaults"
-#saving configs
-output_dir: "configs"
+    Model_C1 : "models/Model_C1_commet.py"
+    Model_C2 : "models/Model_C2_commet.py"
+    Model_C3 : "models/Model_C3_commet.py"
+  datasets:
+    dataset_good_rsd1_3utr:
+      file : "data/dataset_good_rsd1_3utr.npz"
+      chunks : 1
+      reverse : T
+
+    dataset_good_rsd2_3utr:
+      file: "data/dataset_good_rsd2_3utr.npz"
+      chunks: 1
+      reverse: False
+
+
+  #app specific of application
+  app : "optimize_model.py"
+  hparam_config: "params.pcs"
+  optimizer_iterations: 5
+  experiment_suffix: "run1"
 
 params:
-# fixed
-  shuffle: True
-  model_load: True
-
-#early stopping
-  epochs: 500 #500
-  min_delta: 0.01
-  patience: 30
-
-#learning rate scheduler
-  lrs: True
-  lrs_epoch_drop: 10
-
-# variable
-  alphaH: 1
-  alphaL: 1e-4
-  betaH: 0.95
-  betaL: 0.5
-  beta2H: 0.9995
-  beta2L: 0.9
-  epsilonH: 1e-2 # resolution not important
-  epsilonL: 1e-8
-
-  mbatchL: 16
-  mbatchH: 1024 # multiples of x2
-  dropoutL: 0.00
-  dropoutH: 0.50 # 0.xx resolution
-  lrs_tresholdL: 0
-  lrs_tresholdH: 50 # resolution 1
-  lrs_dropL: 0.00
-  lrs_dropH: 0.99
-
-#replicates
-  replicate_seed: [100,200,300]
-  configs_n: 3
+  #replicates
+  replicate_seed: [1234]
   random_seed: 1111

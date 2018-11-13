@@ -1,24 +1,17 @@
 from comet_ml import Optimizer, Experiment
 import hashlib
-import csv
-import pickle
-from collections.abc import Iterable
-from ruamel.yaml import YAML
 import os
 import random
 import re
-import json
 import inspect
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.training import HParams
+
 import keras.backend as K
 from keras.optimizers import Adam
 from my_utils import coef_det_k, best_check, TrainValTensorBoard, MyCSVLogger
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard, CSVLogger
-from keras.callbacks import LearningRateScheduler
 from keras.utils import multi_gpu_model
-from keras.utils.generic_utils import slice_arrays
 import argparse
 
 
@@ -59,7 +52,10 @@ parser.add_argument('--CHUNKS',
                     type=int,
                     default=1,
                     help="Chunks")
-
+parser.add_argument('--reverse',
+                    type=bool,
+                    default=False,
+                    help="reverses X_train, X_test sequences")
 parser.add_argument('--REPLICATE_SEED',
                     type=int,
                     default=123,
@@ -138,6 +134,8 @@ def wrapped_model(x=None, y=None, x_val=None, y_val=None, p=None):
     if args.multi_gpu:
         model = multi_gpu_model(model, gpus=args.multi_gpu)
 
+    print(p.params)
+
     model.compile(optimizer=Adam(lr=float(p['lr']), beta_1=float(p['beta_1']), beta_2=float(p['beta_2']),
                                  epsilon=float(p['epsilon'])), loss='mse', metrics=[coef_det_k])
 
@@ -183,6 +181,7 @@ model_name = os.path.splitext(os.path.basename(args.model))[0]
 exec("from models." + model_name + " import POC_model, load_data, Params")
 X_train, X_test, Y_train, Y_test = load_data(data_path)
 
+
 # splitting validation data
 x, x_val, y, y_val = split_data(x=X_train, y=Y_train, validation_split=args.validation_split)
 
@@ -196,7 +195,12 @@ relevant_params = set(re.findall("p\['(\w+)'\]", lines))
 params = "\n".join([line for line in params.splitlines() for k in relevant_params if re.search(r'\b{0}\b'.format(k), line)])
 
 if args.CHUNKS:  # adding chunks
-    data_split_lst = [str(i[-1]) for i in np.array_split(range(x.shape[1]), args.CHUNKS)]
+
+    if args.reverse:
+        data_split_lst = [str(i[-1]) for i in np.array_split(range(x.shape[1]), args.CHUNKS)]
+    else:
+        data_split_lst = [str(i[0]) for i in np.array_split(range(x.shape[1]), args.CHUNKS)]
+
     data_split_param = "data_split categorical {" + ",".join(data_split_lst) + "}" + " [{}]\n".format(data_split_lst[0])
     params = params + '\n' + data_split_param
 
@@ -214,15 +218,21 @@ while n < args.optimizer_iterations:
 
     suggestion = comet_optimizer.get_suggestion()
 
-    x_chunk = x[:, :int(suggestion['data_split']) + 1, :]
-    x_val_chunk = x_val[:, :int(suggestion['data_split']) + 1, :]
+    if args.reverse:
+        x_chunk = x[:, :int(suggestion['data_split']) + 1, :]
+        x_val_chunk = x_val[:, :int(suggestion['data_split']) + 1, :]
+        x_train_chunk = X_test[:, :int(suggestion['data_split']) + 1, :]
+    else:
+         x_chunk = x[:, int(suggestion['data_split']):, :]
+         x_val_chunk = x_val[:, int(suggestion['data_split']):, :]
+         x_train_chunk = X_test[:, int(suggestion['data_split']):, :]
 
     model = wrapped_model(x=x_chunk, x_val=x_val_chunk, y=y, y_val=y_val, p=suggestion)
     val_mse, val_coef_det = model.evaluate(x_val_chunk, y_val, batch_size=suggestion['mbatch'])
 
+
     # testing
-    test_mse, test_coef_det = model.evaluate(X_test[:, :int(suggestion['data_split']) + 1, :], Y_test,
-                                             batch_size=suggestion['mbatch'])
+    test_mse, test_coef_det = model.evaluate(x_train_chunk, Y_test, batch_size=suggestion['mbatch'])
     K.clear_session()  # because of tensorboard callbacks it dies otherwise
 
     metrics = {
