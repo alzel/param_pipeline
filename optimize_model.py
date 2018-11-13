@@ -6,11 +6,10 @@ import re
 import inspect
 import numpy as np
 import tensorflow as tf
-
 import keras.backend as K
 from keras.optimizers import Adam
-from my_utils import coef_det_k, best_check, TrainValTensorBoard, MyCSVLogger
-from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard, CSVLogger
+from my_utils import coef_det_k, best_check, last_check, TrainValTensorBoard, MyCSVLogger
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.utils import multi_gpu_model
 import argparse
 
@@ -64,7 +63,7 @@ parser.add_argument('--REPLICATE_SEED',
 parser.add_argument('--multi_gpu',
                     type=int,
                     default=None,
-                    choices=[2,4],
+                    choices=[1,2,3,4],
                     help="Specify number of GPU in multi_gpu_model")
 
 parser.add_argument('--param_config',
@@ -131,7 +130,7 @@ def split_data(x, y, validation_split=0.1):
 def wrapped_model(x=None, y=None, x_val=None, y_val=None, p=None):
     model = POC_model(x.shape[1:3], p)
 
-    if args.multi_gpu:
+    if args.multi_gpu and args.multi_gpu >= 2:
         model = multi_gpu_model(model, gpus=args.multi_gpu)
 
     print(p.params)
@@ -145,13 +144,15 @@ def wrapped_model(x=None, y=None, x_val=None, y_val=None, p=None):
 
     #file_names for callbacks
     file_name = os.path.splitext(os.path.basename(args.output_file))[0]
-    model_ckpt_file = os.path.join(args.model_ckpt_dir, file_name + hash_object.hexdigest())
+    best_model_ckpt_file = os.path.join(args.model_ckpt_dir, file_name + hash_object.hexdigest()) + "_best"
+    last_model_ckpt_file = os.path.join(args.model_ckpt_dir, file_name + hash_object.hexdigest()) + "_last"
 
     hpars = {k: np.array(suggestion.params[k][0]) for k in suggestion.params.keys()}
     hpars['md5'] = np.array(hash_object.hexdigest())
 
     call_backs = [EarlyStopping(monitor='val_loss', min_delta=float(p['min_delta']), patience=int(p['patience'])),
-                  ModelCheckpoint(filepath=model_ckpt_file, **best_check),
+                  ModelCheckpoint(filepath=best_model_ckpt_file, **best_check),
+                  ModelCheckpoint(filepath=last_model_ckpt_file, **last_check),
                   MyCSVLogger(filename=args.output_file, hpars=hpars, separator=",", append=True)]
 
     if args.tensorboard_dir:

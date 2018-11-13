@@ -47,17 +47,18 @@ rule run_model:
         prefix = ""
 
         #hacks needed to run different tensoflows depending if node has GPU
-        if "hebbe24-7" in socket.gethostname() or "hebbe24-5" in socket.gethostname():
-            prefix = ("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate python364;")
+        if "kebnekaise" in socket.gethostname():
+            prefix = ("module load Anaconda3 GCC/7.3.0-2.30 CUDA/9.2.88 OpenMPI/3.1.1 TensorFlow/1.10.0-Python-3.6.6; source activate py36;")
         elif "hebbe" in socket.gethostname():
-            prefix = ("module load Anaconda3; module load GCC/6.4.0-2.28 OpenMPI/2.1.2; module load TensorFlow/1.6.0-Python-3.6.4; source activate python364;")
+            prefix = ("module load Anaconda3 GCC/6.4.0-2.28 OpenMPI/2.1.2 CUDA/9.1.85 TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate py36;")
 
         #particular configuration for my MacBook pro
         if "liv003l" in socket.gethostname():
             prefix = ("source activate py36_tensorflow;")
 
-        app = config["input_files"]["app"]
+        app = config["input_files']["app"]
         iterations=config["input_files"]['optimizer_iterations']
+        multi_gpu=config["input_files"]['multi_gpu']
 
         suffix=config["input_files"]["experiment_suffix"]
         proj_name = os.path.splitext(os.path.basename(input.dataset))[0] + suffix
@@ -68,6 +69,7 @@ rule run_model:
         command = f"python {input.app} --model {input.model} --data {input.dataset} --param_config {input.config} " \
                   f"--output_file {output.results} --model_ckpt_dir {params.weights} --verbose 0 --project_name {proj_name} " \
                   f"--CHUNKS {chunks} --api_key {API_key} --REPLICATE_SEED {wildcards.replicate_seed} " \
+                  f"--multi_gpu {multi_gpu} " \
                   f"--optimizer_iterations {iterations} --reverse {reverse} 2>&1| tee {log.log1}"
 
         print(command)

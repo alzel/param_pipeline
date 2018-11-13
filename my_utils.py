@@ -16,8 +16,8 @@ def coef_det_k(y_true, y_pred):
     return 1 - SS_res / (SS_tot + K.epsilon())
 
 
-best_check = {'monitor': 'val_loss', 'verbose': 0, 'save_best_only': True, 'save_weights_only': True, 'mode': 'auto'}
-
+best_check = {'monitor': 'val_loss', 'verbose': 0, 'save_best_only': True, 'save_weights_only': True, 'mode': 'min'}
+last_check = {'monitor': 'val_loss', 'verbose': 0, 'save_best_only': False, 'save_weights_only': True, 'mode': 'min'}
 
 
 class TrainValTensorBoard(TensorBoard):
