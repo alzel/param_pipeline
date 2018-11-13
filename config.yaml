@@ -1,25 +1,52 @@
+experiment_name: Test_run_1
 input_files:
   models:
-    Model_C1 : "models/Model_C1_commet.py"
-    Model_C2 : "models/Model_C2_commet.py"
-    Model_C3 : "models/Model_C3_commet.py"
+    Model_C1: models/Model_C1_commet.py
+#    Model_C2: models/Model_C2_commet.py
+#    Model_C3: models/Model_C3_commet.py
   datasets:
     dataset_good_rsd1_3utr:
-      file : "data/dataset_good_rsd1_3utr.npz"
-      chunks : 1
-      reverse : T
-
-    dataset_good_rsd2_3utr:
-      file: "data/dataset_good_rsd2_3utr.npz"
+      file: data/dataset_good_rsd1_3utr.npz
       chunks: 1
-      reverse: False
-
+      reverse: True
+#    dataset_good_rsd2_3utr:
+#      file: data/dataset_good_rsd2_3utr.npz
+#      chunks: 1
+#      reverse: True
+#
+#    dataset_good_rsd1_5utr:
+#      file: data/dataset_good_rsd1_5utr.npz
+#      chunks: 3
+#      reverse: False
+#
+#    dataset_good_rsd2_5utr:
+#      file: data/dataset_good_rsd2_5utr.npz
+#      chunks: 3
+#      reverse: False
+#
+#    dataset_good_rsd1_prom:
+#      file: data/dataset_good_rsd1_prom.npz
+#      chunks: 3
+#      reverse: False
+#
+#    dataset_good_rsd2_prom:
+#      file: data/dataset_good_rsd1_prom.npz
+#      chunks: 3
+#      reverse: False
+#
+#    dataset_good_rsd1_term:
+#      file: data/dataset_good_rsd1_term.npz
+#      chunks: 2
+#      reverse: True
+#    dataset_good_rsd2_term:
+#      file: data/dataset_good_rsd2_term.npz
+#      chunks: 2
+#      reverse: True
 
   #app specific of application
-  app : "optimize_model.py"
+  app: "optimize_model.py"
   hparam_config: "params.pcs"
   optimizer_iterations: 5
-  experiment_suffix: "run1"
   multi_gpu: 1
 params:
   #replicates
