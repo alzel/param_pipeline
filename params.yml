@@ -21,9 +21,8 @@ default: &DEFAULT
   dropout: [0.6]
   lrs_threshod: [20]
   lrs_drop: [0.3]
-  chunks: 1 #number of parts to divide data
 
-  #activation: ["relu"]
+   #activation: ["relu"]
   #optimizer: ["Adam"]
   #replicates
   #replicate_seed: [100,200,300]
@@ -34,9 +33,10 @@ sampling:
   <<: *DEFAULT
   # variable
   lr:
-      ub: 0.2 #alphaH
+      ub: 0.1 #alphaH
       lb: 1e-4 #alphaL
       n: 1 #samples
+      type:
   beta_1:
       ub: 0.95 #betaH
       lb: 0.5 #betaL
@@ -44,13 +44,9 @@ sampling:
   beta_2:
       ub: 0.9995
       lb: 0.9
-      n: 1
-  epsilon:
-      ub: 1e-5
-      lb: 1e-8
-      n: 1
+      n: 3
   dropout:
-      ub: 0.6
+      ub: 1
       lb: 0.1
       n: 0.1
   lrs_threshold:

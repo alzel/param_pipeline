@@ -13,7 +13,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.training import HParams
 from keras.optimizers import Adam
-from my_utils import coef_det_k, best_check, TrainValTensorBoard
+from my_utils import coef_det_k, best_check,last_check, TrainValTensorBoard, MyCSVLogger
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.callbacks import LearningRateScheduler
 from keras.utils import multi_gpu_model
@@ -52,6 +52,14 @@ parser.add_argument('--experiment_no',
                     default="1",
                     help="name of experiment")
 
+parser.add_argument('--CHUNKS',
+                    type=int,
+                    default=1,
+                    help="Chunks")
+parser.add_argument('--reverse',
+                    type=bool,
+                    default=False,
+                    help="reverses X_train, X_test sequences")
 parser.add_argument('--REPLICATE_SEED',
                     type=int,
                     default=123,
@@ -59,6 +67,7 @@ parser.add_argument('--REPLICATE_SEED',
 parser.add_argument('--multi_gpu',
                     type=int,
                     default=None,
+                    choices=[1,2,3,4],
                     help="Specify number of GPU in multi_gpu_model")
 
 parser.add_argument('--param_config',
@@ -74,9 +83,6 @@ parser.add_argument('--hashmap', type=str,
 parser.add_argument('--results', type=str,
                     required=True, help="Results filename of talos.Scan object")
 
-parser.add_argument('--results_csv', type=str,
-                    help="Results filename ")
-
 parser.add_argument('--val_split', default=0.1, type=float,
                     help="Validation split")
 
@@ -86,15 +92,19 @@ parser.add_argument('--grid_downsample', default=0.001, type=float,
 parser.add_argument('--verbose', default=0, type=int, choices=[0, 1, 2],
                     help="Verbosity level of training")
 
+parser.add_argument('--output_file',
+                    required=True,
+                    help="Output filename")
+
 args = parser.parse_args()
 
 
 # callback directories
-if not os.path.exists(args.model_ckpt_dir):
-    os.makedirs(args.model_ckpt_dir)
+if args.model_ckpt_dir:
+    os.makedirs(args.model_ckpt_dir, exist_ok=True)
 
-if not os.path.exists(args.tensorboard_dir):
-    os.makedirs(args.tensorboard_dir)
+if args.tensorboard_dir:
+    os.makedirs(args.tensorboard_dir, exist_ok=True)
 
 # setting seeds
 REPLICATE_SEED = args.REPLICATE_SEED
@@ -102,6 +112,15 @@ os.environ['PYTHONHASHSEED'] = str(REPLICATE_SEED + 1)
 np.random.seed(REPLICATE_SEED + 2)
 random.seed(REPLICATE_SEED + 3)
 tf.set_random_seed(REPLICATE_SEED + 4)
+
+def split_data(x, y, validation_split=0.1):
+    if validation_split and 0. < validation_split < 1.:
+        split_at = int(len(x[:]) * (1. - validation_split))
+        x, x_val = (x[0:split_at, :, :], x[split_at:, :, :])
+        y, y_val = (y[0:split_at], y[split_at:])
+    else:
+        raise ValueError("validation_split must be [0,1)")
+    return x, x_val, y, y_val
 
 
 def get_section_hparams(ub, lb, n):
@@ -124,41 +143,50 @@ def get_section_hparams(ub, lb, n):
 
 
 def wrapped_model(x_train, y_train, x_val, y_val, p):
-    x_train = x_train[:, :int(p['data_split']) + 1, :]
-    model = POC_model(x_train, y_train, x_val, y_val, p)
 
-    file_name = os.path.splitext(os.path.basename(args.data))[0] + "_" + \
-                os.path.splitext(os.path.basename(args.model))[0] + "_" + args.experiment_no
+    if args.reverse:
+        x_train = x_train[:, :int(p['data_split']) + 1, :]
+        x_val= x_val[:, :int(p['data_split']) + 1, :]
+        #x_train_chunk = X_test[:, :int(suggestion['data_split']) + 1, :]
+    else:
+         x_train = x_train[:, int(p['data_split']):, :]
+         x_val = x_val[:, int(p['data_split']):, :]
+         #x_train_chunk = X_test[:, int(suggestion['data_split']):, :]
 
-    if args.multi_gpu:
-        model = multi_gpu_model(model, gpus=2)
+    model = POC_model(x_train.shape[1:3], p)
+
+    if args.multi_gpu and args.multi_gpu >= 2:
+        model = multi_gpu_model(model, gpus=args.multi_gpu)
+
+    my_keys = sorted(list(p.keys()))
+    param_string = ','.join(["{!s}={!r}".format(key, p[key]) for key in my_keys])
+    hash_object = hashlib.md5(param_string.encode())
+
+    #file_names for callbacks
+    file_name = os.path.splitext(os.path.basename(args.output_file))[0]
+    best_model_ckpt_file = os.path.join(args.model_ckpt_dir, file_name + hash_object.hexdigest()) + "_best"
+    last_model_ckpt_file = os.path.join(args.model_ckpt_dir, file_name + hash_object.hexdigest()) + "_last"
+
+    print(p)
+
+    hpars = {k: np.array(p[k]) for k in p.keys()}
+    print(hpars)
+
+    hpars['md5'] = np.array(hash_object.hexdigest())
+
+    call_backs = [EarlyStopping(monitor='val_loss', min_delta=float(p['min_delta']), patience=int(p['patience'])),
+                  ModelCheckpoint(filepath=best_model_ckpt_file, **best_check),
+                  ModelCheckpoint(filepath=last_model_ckpt_file, **last_check),
+                  MyCSVLogger(filename=args.output_file, hpars=hpars, separator=",", append=True)]
+
+    if args.tensorboard_dir:
+        call_backs.append(TrainValTensorBoard(log_dir=os.path.join(args.tensorboard_dir, file_name + hash_object.hexdigest()),
+                                              histogram_freq=10, write_grads=True))
 
     model.compile(optimizer=Adam(lr=p['lr'], beta_1=p['beta_1'], beta_2=p['beta_2'], epsilon=p['epsilon']),
                   loss='mse',
                   metrics=[coef_det_k])
 
-    # coding parameters to hash tring
-    my_keys = sorted(list(p.keys()))
-
-    param_string = ','.join(["{!s}={!r}".format(key, p[key]) for key in my_keys])
-    hash_object = hashlib.md5(param_string.encode())
-
-    file_name = file_name + '_' + hash_object.hexdigest()
-    # save to hashmap
-    if args.hashmap:
-        fieldnames = ["file_name"] + my_keys
-        if not os.path.isfile(args.hashmap):
-            with open(args.hashmap, 'w') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(fieldnames)
-        with open(args.hashmap, 'a') as csvfile:
-            param_dict = {**{'file_name': file_name}, **p}
-            writer = csv.writer(csvfile)
-            writer.writerow([param_dict[k] for k in fieldnames])
-
-    call_backs = [ModelCheckpoint(filepath=os.path.join(args.model_ckpt_dir, file_name), **best_check),
-                  EarlyStopping(monitor='val_loss', min_delta=p['min_delta'], patience=p['patience']),
-                  TrainValTensorBoard(log_dir=os.path.join(args.tensorboard_dir, file_name))]
     if p['lrs']:
         def schedule(epoch, lr):
             treshold = p['lrs_threshold']
@@ -176,7 +204,6 @@ def wrapped_model(x_train, y_train, x_val, y_val, p):
                     verbose=args.verbose,
                     validation_data=[x_val, y_val],
                     callbacks=call_backs)
-
     return out, model
 
 
@@ -231,27 +258,28 @@ exec("from models." + model_name + " import POC_model, load_data, Params")
 X_train, X_test, Y_train, Y_test = load_data(data_path)
 
 p_specific = Params()
-
-if 'chunks' in p_default:
-    p_specific['data_split'] = [i[-1] for i in np.array_split(range(X_train.shape[1]), p_default['chunks'][0])]
-
 params = {**p_default, **p_specific}
+
+if args.CHUNKS:  # adding chunks
+    if args.reverse:
+        params['data_split'] = [i[-1] for i in np.array_split(range(X_train.shape[1]), args.CHUNKS)]
+    else:
+        params['data_split'] = [i[0] for i in np.array_split(range(X_train.shape[1]), args.CHUNKS)]
 
 # filters only defined parameters
 lines = "\n".join([inspect.getsource(i) for i in [POC_model, wrapped_model]])
 relevant_params = set(re.findall("p\['(\w+)'\]", lines))
 params = {k: params[k] for k in relevant_params}
 
+
 dataset_name = os.path.splitext(os.path.basename(args.data))[0] + "_" + \
                os.path.splitext(os.path.basename(args.model))[0]
 
-if args.results_csv:
-    dataset_name = args.results_csv
 
 h = ta.Scan(X_train, Y_train,
             params=params,
             model=wrapped_model,
-            dataset_name=dataset_name,
+            dataset_name=args.output_file,
             experiment_no=args.experiment_no,
             val_split=args.val_split,
             grid_downsample=args.grid_downsample
