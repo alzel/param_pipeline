@@ -272,6 +272,5 @@ while n < args.optimizer_iterations:
     pbar.update(1)
     n = n + 1
 pbar.close()
-print(passed_candidates)
-print("bla")
-print(repeated/float(num_iterations))
+
+print("total wasted iterations: ", repeated/float(args.optimizer_iterations))
