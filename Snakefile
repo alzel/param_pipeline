@@ -63,8 +63,8 @@ rule run_model:
 
 
         command = f"python {app} --model {input.model} --data {input.dataset} --param_config {input.config} " \
-                  f"--output_file {output.results} --model_ckpt_dir {params.weights} --verbose 0 --project_name {proj_name} " \
-                  f"--CHUNKS {chunks} --api_key {API_key} --REPLICATE_SEED {wildcards.replicate_seed} " \
+                  f"--output_file {output.results} --model_ckpt_dir {params.weights} --verbose 0 " \
+                  f"--CHUNKS {chunks}  --REPLICATE_SEED {wildcards.replicate_seed} " \
                   f"--multi_gpu {multi_gpu} " \
                   f"--optimizer_iterations {iterations} --reverse {reverse} 2>&1| tee {log.log1}"
 
