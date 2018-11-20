@@ -16,6 +16,7 @@ from keras.optimizers import Adam
 from my_utils import coef_det_k, best_check,last_check, TrainValTensorBoard, MyCSVLogger
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.callbacks import LearningRateScheduler
+import keras.backend as K
 from keras.utils import multi_gpu_model
 from tqdm import tqdm
 import argparse
@@ -234,24 +235,11 @@ if 'id' in relevant_params:
     relevant_params.remove('id')
 params = {k: params[k] for k in relevant_params}
 
-x_chunks =
 if args.CHUNKS:  # adding chunks
     if args.reverse:
         params['data_split'] = [i[-1] for i in np.array_split(range(x.shape[1]), args.CHUNKS)]
     else:
         params['data_split'] = [i[0] for i in np.array_split(range(x.shape[1]), args.CHUNKS)]
-
-    if args.reverse:
-
-        for ds in params['data_split']:
-
-        x_chunks[ds] = x[:, :int(ds) + 1, :]
-        x_val_chunk = x_val[:, :int(suggestion['data_split']) + 1, :]
-        # x_train_chunk = X_test[:, :int(suggestion['data_split']) + 1, :]
-    else:
-        x_chunk = x[:, int(suggestion['data_split']):, :]
-        x_val_chunk = x_val[:, int(suggestion['data_split']):, :]
-    # x_train_chunk = X_test[:, int(suggestion['data_split']):, :]
 
 
 sorted_param_keys = sorted(list(params.keys()))
@@ -292,7 +280,7 @@ while n < args.optimizer_iterations:
         model = wrapped_model(x_train=x_chunk, y_train=y, x_val=x_val_chunk, y_val=y_val, p=suggestion)
         K.clear_session()
     except Exception as e:
-        print("Error {e}")
+        print(f"Error {e}")
         pbar.update(1)
         n = n + 1
         continue
