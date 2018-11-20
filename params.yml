@@ -4,7 +4,7 @@ default: &DEFAULT
   #model_load: True
 
 
-  epochs: 10
+  epochs: 1
   #early stopping
   min_delta: [0.01]
   patience: [50]
@@ -17,7 +17,7 @@ default: &DEFAULT
   beta_1: [0.95]
   beta_2: [0.9995]
   epsilon: [1e-7]
-  mbatch: [64, 128, 256, 512]
+  mbatch: [64, 128, 256]
   dropout: [0.6]
   #lrs_threshod: [20]
   #lrs_drop: [0.3]

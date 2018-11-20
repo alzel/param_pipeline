@@ -19,6 +19,8 @@ from keras.callbacks import LearningRateScheduler
 from keras.utils import multi_gpu_model
 from tqdm import tqdm
 import argparse
+import logging
+
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
@@ -38,6 +40,7 @@ parser.add_argument('--data',
 
 parser.add_argument('--model_ckpt_dir',
                     type=str,
+                    required=True,
                     default="model_weights",
                     help="Directory to store model checkpoints")
 
@@ -231,11 +234,24 @@ if 'id' in relevant_params:
     relevant_params.remove('id')
 params = {k: params[k] for k in relevant_params}
 
+x_chunks =
 if args.CHUNKS:  # adding chunks
     if args.reverse:
         params['data_split'] = [i[-1] for i in np.array_split(range(x.shape[1]), args.CHUNKS)]
     else:
         params['data_split'] = [i[0] for i in np.array_split(range(x.shape[1]), args.CHUNKS)]
+
+    if args.reverse:
+
+        for ds in params['data_split']:
+
+        x_chunks[ds] = x[:, :int(ds) + 1, :]
+        x_val_chunk = x_val[:, :int(suggestion['data_split']) + 1, :]
+        # x_train_chunk = X_test[:, :int(suggestion['data_split']) + 1, :]
+    else:
+        x_chunk = x[:, int(suggestion['data_split']):, :]
+        x_val_chunk = x_val[:, int(suggestion['data_split']):, :]
+    # x_train_chunk = X_test[:, int(suggestion['data_split']):, :]
 
 
 sorted_param_keys = sorted(list(params.keys()))
@@ -249,6 +265,20 @@ while n < args.optimizer_iterations:
     param_string = ','.join(["{!s}={!r}".format(key, suggestion[key]) for key in sorted_param_keys])
     hash_string = hashlib.md5(param_string.encode()).hexdigest()
 
+    files = os.listdir(args.model_ckpt_dir)
+    m = [re.search(hash_string, f) for f in files]
+
+    if any(m):
+        passed_candidates[hash_string] = passed_candidates.get(hash_string, 0) + 1
+
+    if hash_string in passed_candidates:
+        repeated += 1
+        pbar.update(1)
+        n = n + 1
+        continue
+
+    suggestion['id'] = [hash_string]
+
     if args.reverse:
         x_chunk = x[:, :int(suggestion['data_split']) + 1, :]
         x_val_chunk = x_val[:, :int(suggestion['data_split']) + 1, :]
@@ -258,15 +288,14 @@ while n < args.optimizer_iterations:
         x_val_chunk = x_val[:, int(suggestion['data_split']):, :]
        #x_train_chunk = X_test[:, int(suggestion['data_split']):, :]
 
-    if hash_string in passed_candidates:
-        repeated +=1
+    try:
+        model = wrapped_model(x_train=x_chunk, y_train=y, x_val=x_val_chunk, y_val=y_val, p=suggestion)
+        K.clear_session()
+    except Exception as e:
+        print("Error {e}")
         pbar.update(1)
         n = n + 1
         continue
-
-    suggestion['id'] = [hash_string]
-    print(x_chunk.shape, x_val_chunk.shape, y.shape, y_val.shape)
-    model = wrapped_model(x_train=x_chunk, y_train=y, x_val=x_val_chunk, y_val=y_val, p=suggestion)
 
     passed_candidates[hash_string] = passed_candidates.get(hash_string, 0) + 1
     pbar.update(1)
