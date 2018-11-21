@@ -1,6 +1,7 @@
 import numpy as np
 from keras.models import Model
 from keras.layers import Conv1D, MaxPooling1D, BatchNormalization, Dropout, Input, Dense, Flatten
+from hyperopt import hp
 
 def load_data(fname):
     # X is multi-variable array
@@ -28,43 +29,29 @@ def load_data(fname):
 
 
 def Params():
-    params = """
-kernel_size1 categorical {10,20,30,40} [10]
-filters1 categorical {16,32,64,128} [32]
-pool_size1 categorical {1,2,4,8} [1]
-stride1 categorical {1,2} [1]
-
-kernel_size2 categorical {10,20,30,40} [10]
-filters2 categorical {16,32,64,128} [32]
-pool_size2 categorical {1,2,4,8} [1]
-stride2 categorical {1,2} [1]
-
-kernel_size3 categorical {10,20,30,40} [10]
-filters3 categorical {16,32,64,128} [32]
-pool_size3 categorical {1,2,4,8} [1]
-stride3 categorical {1,2} [1]
-
-last_dense categorical {32,64,128,256} [64]"""
-
     params = {
         'kernel_size1': [10, 20, 30, 40],
         'filters1': [16, 32, 64, 128],
         'pool_size1': [1, 2, 4],
         'stride1': [1, 2],
+        'dropout1': (0, 1),
 
         'kernel_size2': [10, 20, 30, 40],
         'filters2': [16, 32, 64, 128],
         'pool_size2': [1, 2, 4, 8],
         'stride2': [1, 2],
+        'dropout2': (0, 1),
 
         'kernel_size3': [10, 20, 30, 40],
         'filters3': [16, 32, 64, 128],
         'pool_size3': [1, 2, 4, 8],
         'stride3': [1, 2],
+        'dropout3': (0, 1),
+        'dropout4': (0, 1),
 
         'last_dense': [32, 64, 128, 256]
     }
-    return params
+    return {k: hp.choice(k, v) if type(v) == list else hp.uniform(k, v[0], v[1]) for k, v in params.items()}
 
 
 def POC_model(input_shape_hot, p):
