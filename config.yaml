@@ -1,14 +1,15 @@
 experiment_name: Test_run_1
 input_files:
   models:
-    Model_C1: models/Model_C1_talos.py
-#    Model_C2: models/Model_C2_talos.py
-#    Model_C3: models/Model_C3_talos.py
+    Model_C1: models/Model_C1_param.py
+#    Model_C2: models/Model_C2_param.py
+#    Model_C3: models/Model_C3_param.py
   datasets:
     dataset_good_rsd1_3utr:
       file: data/dataset_good_rsd1_3utr.npz
       chunks: 1
       reverse: True
+      cuda_gpu: 1
 #    dataset_good_rsd2_3utr:
 #      file: data/dataset_good_rsd2_3utr.npz
 #      chunks: 1

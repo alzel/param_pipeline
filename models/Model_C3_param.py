@@ -73,23 +73,23 @@ def POC_model(input_shape_hot, p):
 
     X = Conv1D(filters=int(p['filters1']), kernel_size=int(p['kernel_size1']), strides=1, activation='relu', kernel_initializer='he_uniform')(X_input1)
     X = BatchNormalization()(X)
-    X = Dropout(float(p['dropout']))(X)
+    X = Dropout(float(p['dropout1']))(X)
     X = MaxPooling1D(pool_size=int(p['pool_size1']), strides=int(p['stride1']), padding='same')(X)
 
     X = Conv1D(filters=int(p['filters2']), kernel_size=int(p['kernel_size2']), strides=1, activation='relu', kernel_initializer='he_uniform')(X)
     X = BatchNormalization()(X)
-    X = Dropout(float(p['dropout']))(X)
+    X = Dropout(float(p['dropout2']))(X)
     X = MaxPooling1D(pool_size=int(p['pool_size2']), strides=int(p['stride2']), padding='same')(X)
 
     X = Conv1D(filters=int(p['filters3']), kernel_size=int(p['kernel_size3']), strides=1, activation='relu', kernel_initializer='he_uniform')(X)
     X = BatchNormalization()(X)
-    X = Dropout(float(p['dropout']))(X)
+    X = Dropout(float(p['dropout3']))(X)
     X = MaxPooling1D(pool_size=int(p['pool_size3']), strides=int(p['stride3']), padding='same')(X)
 
     X = Flatten()(X)
     X = Dense(int(p['last_dense']), activation='relu', kernel_initializer='he_uniform')(X)
     X = BatchNormalization()(X)
-    X = Dropout(float(p['dropout']))(X)
+    X = Dropout(float(p['dropout4']))(X)
 
     X = Dense(1)(X)
 

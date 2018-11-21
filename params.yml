@@ -4,7 +4,7 @@ default: &DEFAULT
   #model_load: True
 
 
-  epochs: 1
+  epochs: [1]
   #early stopping
   min_delta: [0.01]
   patience: [50]
@@ -25,7 +25,7 @@ default: &DEFAULT
    #activation: ["relu"]
   #optimizer: ["Adam"]
   #replicates
-  replicate_seed: [100, 200, 300]
+  replicate_seed: [100]
   #configs_n: 3
   #random_seed: 1111
 
@@ -33,22 +33,17 @@ sampling:
   <<: *DEFAULT
   # variable
   lr:
-      ub: 0.1 #alphaH
-      lb: 1e-4 #alphaL
-      n: 1 #samples
-      type:
+      ub: np.log(0.1) #alphaH
+      lb: np.log(0.0001) #alphaL
+      type: log
   beta_1:
       ub: 0.95 #betaH
       lb: 0.5 #betaL
-      n: 1
+      type: uniform
   beta_2:
-      ub: 0.9995
-      lb: 0.9
-      n: 1
-  dropout:
-      ub: 1
-      lb: 0.1
-      n: 1
+      ub: np.log(0.95)
+      lb: np.log(0.9)
+      type: log
 #  lrs_threshold:
 #      ub: 50
 #      lb: 0
