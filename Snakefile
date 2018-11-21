@@ -8,7 +8,8 @@ localrules: all
 
 API_key= os.environ.get("COMET_API_KEY")
 
-MODELS =  expand("results/{dataset}/{dataset}_{model}_{replicate_seed}.csv",
+MODELS =  expand("{experiment}/results/{dataset}/{dataset}_{model}_{replicate_seed}.csv",
+                 experiment=config['experiment_name'],
                  dataset=config['input_files']['datasets'],
                  model=config['input_files']['models'],
                  replicate_seed=config['params']['replicate_seed'])
@@ -21,7 +22,7 @@ rule all:
 
 # making directoris for params, whose are not automatic
 for dataset in config['input_files']['datasets']:
-    os.makedirs(os.path.join("weights", dataset), exist_ok=True)
+    os.makedirs(os.path.join(config['experiment_name'], "weights", dataset), exist_ok=True)
 
 rule run_model:
     input:
@@ -29,11 +30,11 @@ rule run_model:
         config=config["input_files"]["hparam_config"],
         model=lambda wildcards: config["input_files"]["models"][wildcards.model],
     output:
-        results="results/{dataset}/{dataset}_{model}_{replicate_seed}.csv"
+        results="{experiment}/results/{dataset}/{dataset}_{model}_{replicate_seed}.csv"
     params:
-        weights="weights/{dataset}/{dataset}_{model}_{replicate_seed}"
+        weights="{experiment}/weights/{dataset}/{dataset}_{model}_{replicate_seed}"
     log:
-        log1="logs/{dataset}_{model}_{replicate_seed}.log"
+        log1="{experiment}/logs/{dataset}_{model}_{replicate_seed}.log"
     run:
         import sys
         import os
