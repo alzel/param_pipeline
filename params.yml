@@ -1,10 +1,6 @@
 
 default: &DEFAULT
-  #shuffle: True
-  #model_load: True
-
-
-  epochs: [1]
+  epochs: [500]
   #early stopping
   min_delta: [0.01]
   patience: [50]
@@ -18,16 +14,7 @@ default: &DEFAULT
   beta_2: [0.9995]
   epsilon: [1e-7]
   mbatch: [64, 128, 256]
-  dropout: [0.6]
-  #lrs_threshod: [20]
-  #lrs_drop: [0.3]
-
-   #activation: ["relu"]
-  #optimizer: ["Adam"]
-  #replicates
   replicate_seed: [100]
-  #configs_n: 3
-  #random_seed: 1111
 
 sampling:
   <<: *DEFAULT
