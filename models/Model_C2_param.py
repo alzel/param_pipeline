@@ -37,7 +37,7 @@ def Params():
         'dropout1': (0, 1),
         'kernel_size2': [10, 20, 30, 40],
         'filters2': [16, 32, 64, 128],
-        'pool_size2': [1, 2, 4, 8],
+        'pool_size2': [1, 2, 4],
         'stride2': [1, 2],
         'dropout2': (0, 1),
         'dropout3': (0, 1),

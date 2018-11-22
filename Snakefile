@@ -13,8 +13,11 @@ MODELS =  expand("{experiment}/results/{dataset}/{dataset}_{model}_{replicate_se
                  dataset=config['input_files']['datasets'],
                  model=config['input_files']['models'],
                  replicate_seed=config['params']['replicate_seed'])
+
 if not os.path.exists("logs"):
     os.makedirs("logs")
+
+localrules: all
 
 rule all:
     input:
@@ -26,9 +29,8 @@ for dataset in config['input_files']['datasets']:
 
 rule run_model:
     input:
-        dataset=lambda wildcards: config["input_files"]['datasets'][wildcards.dataset]["file"],
-        config=config["input_files"]["hparam_config"],
-        model=lambda wildcards: config["input_files"]["models"][wildcards.model],
+        dataset=lambda wildcards: config["input_files"]["datasets"][wildcards.dataset]["file"],
+	model=lambda wildcards: config["input_files"]["models"][wildcards.model],
     output:
         results="{experiment}/results/{dataset}/{dataset}_{model}_{replicate_seed}.csv"
     params:
@@ -39,7 +41,7 @@ rule run_model:
         import sys
         import os
         import socket
-
+	prefix = ""
         # hacks needed to run different tensoflows depending if node has GPU
         if "kebnekaise" in socket.gethostname():
             prefix = (
@@ -55,15 +57,17 @@ rule run_model:
         app = config["input_files"]['app']
         iterations=config["input_files"]['optimizer_iterations']
         proj_name =config["experiment_name"]
+	hparam_config=config["input_files"]["hparam_config"]
         chunks=config["input_files"]['datasets'][wildcards.dataset]["chunks"]
         reverse=config["input_files"]['datasets'][wildcards.dataset]["reverse"]
         cuda_gpu=config["input_files"]['datasets'][wildcards.dataset]["cuda_gpu"]
         prefix = prefix + " CUDA_VISIBLE_DEVICES="+str(cuda_gpu)
 
-        command = f"python {app} --model {input.model} --data {input.dataset} --param_config {input.config} " \
+        command = f"python {app} --model {input.model} --data {input.dataset} --param_config {hparam_config} " \
                   f"--output_file {output.results} --model_ckpt_dir {params.weights} --verbose 0 " \
                   f"--CHUNKS {chunks}  --REPLICATE_SEED {wildcards.replicate_seed} " \
                   f"--optimizer_iterations {iterations} --reverse {reverse} 2>&1| tee {log.log1}"
 
-        print(command)
-        os.system(prefix + " " + command)
+        command = prefix + " " + command
+	print(command)
+        #os.system(prefix + " " + command)
