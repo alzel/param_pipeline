@@ -4,6 +4,10 @@ import glob
 import numpy as np
 configfile: "config.yaml"
 
+import random
+import time
+ 
+
 API_key= os.environ.get("COMET_API_KEY")
 
 MODELS =  expand("{experiment}/results/{dataset}/{dataset}_{model}_{replicate_seed}.csv",
@@ -34,23 +38,27 @@ rule run_model:
     log:
         log1="{experiment}/logs/{dataset}_{model}_{replicate_seed}.log"
     resources:
-        gpu = 1,
+        gpu = 49,
         mem_frac = 40
     run:
         import subprocess
         import pandas
         from io import StringIO
+        
+	timeDelay = random.randrange(0, 10)
+	time.sleep(timeDelay)
 
-        def get_CUDA():
-            command = "nvidia-smi --query-gpu=gpu_bus_id,pstate,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv"
+	def get_CUDA():
+            command = "nvidia-smi --query-gpu=gpu_bus_id,pstate,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv,nounits,noheader"
             out_string = subprocess.run(command, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
             # out_string="""00000000:17:00.0, P0, 65, 13, 16278, 2240, 14038
             # 00000000:65:00.0, P0, 30, 0, 16270, 16104, 166
-            # """
-            if out_string:
+            
+            print(out_string)
+	    if out_string:
                 df = pandas.read_csv(StringIO(out_string), header=None)
                 if df.shape != (1, 1):
-                    return df[2].idxmin()
+                    return df[6].idxmin()
                 else:
                     return 0
             else:

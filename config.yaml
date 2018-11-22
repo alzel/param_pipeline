@@ -1,4 +1,4 @@
-experiment_name: Test_run_hyperas
+experiment_name: _run_hyperas_e500_i1500
 input_files:
   models:
     Model_C1: models/Model_C1_param.py
@@ -9,47 +9,39 @@ input_files:
       file: data/dataset_good_rsd1_3utr.npz
       chunks: 1
       reverse: True
-      cuda_gpu: 0
     dataset_good_rsd2_3utr: 
       file: data/dataset_good_rsd2_3utr.npz
       chunks: 1
       reverse: True
-      cuda_gpu: 1
     dataset_good_rsd1_5utr: 
       file: data/dataset_good_rsd1_5utr.npz
       chunks: 3
       reverse: False
-      cuda_gpu: 0
     dataset_good_rsd2_5utr: 
       file: data/dataset_good_rsd2_5utr.npz
       chunks: 3
       reverse: False
-      cuda_gpu: 1
     dataset_good_rsd1_prom:
       file: data/dataset_good_rsd1_prom.npz
       chunks: 3
       reverse: False
-      cuda_gpu: 0
     dataset_good_rsd2_prom:
       file: data/dataset_good_rsd2_prom.npz
       chunks: 3
       reverse: False
-      cuda_gpu: 1
     dataset_good_rsd1_term:
       file: data/dataset_good_rsd1_term.npz
       chunks: 2
       reverse: True
-      cuda_gpu: o
     dataset_good_rsd2_term:
       file: data/dataset_good_rsd2_term.npz
       chunks: 2
       reverse: True
-      cuda_gpu: 1
 
   #app specific of application
   app: "optimize_model.py"
   hparam_config: "params.yml"
-  optimizer_iterations: 3
+  optimizer_iterations: 1500
   multi_gpu: 1
 params:
   #replicates
