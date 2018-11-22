@@ -4,8 +4,6 @@ import glob
 import numpy as np
 configfile: "config.yaml"
 
-localrules: all
-
 API_key= os.environ.get("COMET_API_KEY")
 
 MODELS =  expand("{experiment}/results/{dataset}/{dataset}_{model}_{replicate_seed}.csv",
@@ -16,8 +14,6 @@ MODELS =  expand("{experiment}/results/{dataset}/{dataset}_{model}_{replicate_se
 
 if not os.path.exists("logs"):
     os.makedirs("logs")
-
-localrules: all
 
 rule all:
     input:
@@ -30,18 +26,41 @@ for dataset in config['input_files']['datasets']:
 rule run_model:
     input:
         dataset=lambda wildcards: config["input_files"]["datasets"][wildcards.dataset]["file"],
-	model=lambda wildcards: config["input_files"]["models"][wildcards.model],
+        model=lambda wildcards: config["input_files"]["models"][wildcards.model],
     output:
         results="{experiment}/results/{dataset}/{dataset}_{model}_{replicate_seed}.csv"
     params:
         weights="{experiment}/weights/{dataset}/{dataset}_{model}_{replicate_seed}"
     log:
         log1="{experiment}/logs/{dataset}_{model}_{replicate_seed}.log"
+    resources:
+        gpu = 1,
+        mem_frac = 40
     run:
+        import subprocess
+        import pandas
+        from io import StringIO
+
+        def get_CUDA():
+            command = "nvidia-smi --query-gpu=gpu_bus_id,pstate,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv"
+            out_string = subprocess.run(command, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
+            # out_string="""00000000:17:00.0, P0, 65, 13, 16278, 2240, 14038
+            # 00000000:65:00.0, P0, 30, 0, 16270, 16104, 166
+            # """
+            if out_string:
+                df = pandas.read_csv(StringIO(out_string), header=None)
+                if df.shape != (1, 1):
+                    return df[2].idxmin()
+                else:
+                    return 0
+            else:
+                return 0
+
         import sys
         import os
         import socket
-	prefix = ""
+        prefix = ""
+
         # hacks needed to run different tensoflows depending if node has GPU
         if "kebnekaise" in socket.gethostname():
             prefix = (
@@ -57,17 +76,16 @@ rule run_model:
         app = config["input_files"]['app']
         iterations=config["input_files"]['optimizer_iterations']
         proj_name =config["experiment_name"]
-	hparam_config=config["input_files"]["hparam_config"]
+        hparam_config=config["input_files"]["hparam_config"]
         chunks=config["input_files"]['datasets'][wildcards.dataset]["chunks"]
         reverse=config["input_files"]['datasets'][wildcards.dataset]["reverse"]
-        cuda_gpu=config["input_files"]['datasets'][wildcards.dataset]["cuda_gpu"]
+
+        cuda_gpu=get_CUDA()
         prefix = prefix + " CUDA_VISIBLE_DEVICES="+str(cuda_gpu)
 
         command = f"python {app} --model {input.model} --data {input.dataset} --param_config {hparam_config} " \
                   f"--output_file {output.results} --model_ckpt_dir {params.weights} --verbose 0 " \
                   f"--CHUNKS {chunks}  --REPLICATE_SEED {wildcards.replicate_seed} " \
                   f"--optimizer_iterations {iterations} --reverse {reverse} 2>&1| tee {log.log1}"
-
         command = prefix + " " + command
-	print(command)
-        #os.system(prefix + " " + command)
+        os.system(prefix + " " + command)
