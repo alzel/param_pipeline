@@ -44,18 +44,15 @@ rule run_model:
         import subprocess
         import pandas
         from io import StringIO
-        
-    timeDelay = random.randrange(0, 10)
-    time.sleep(timeDelay)
+        time.sleep(random.randrange(0, 10))
 
-    def get_CUDA():
-        command = "nvidia-smi --query-gpu=gpu_bus_id,pstate,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv,nounits,noheader"
-        out_string = subprocess.run(command, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
-        # out_string="""00000000:17:00.0, P0, 65, 13, 16278, 2240, 14038
-        # 00000000:65:00.0, P0, 30, 0, 16270, 16104, 166
+        def get_CUDA():
+            command = "nvidia-smi --query-gpu=gpu_bus_id,pstate,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv,nounits,noheader"
+            out_string = subprocess.run(command, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
+            # out_string="""00000000:17:00.0, P0, 65, 13, 16278, 2240, 14038
+            # 00000000:65:00.0, P0, 30, 0, 16270, 16104, 166
 
-            print(out_string)
-        if out_string:
+            if out_string:
                 df = pandas.read_csv(StringIO(out_string), header=None)
                 if df.shape != (1, 1):
                     return df[6].idxmin()
@@ -64,7 +61,6 @@ rule run_model:
             else:
                 return 0
 
-        import sys
         import os
         import socket
         prefix = ""
