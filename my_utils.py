@@ -140,13 +140,18 @@ class MyCSVLogger(CSVLogger):
 
 
 def split_data(x, y, validation_split=0.1):
+    '''xs is a list'''
     if validation_split and 0. < validation_split < 1.:
-        split_at = int(len(x[:]) * (1. - validation_split))
-        x, x_val = (x[0:split_at, :, :], x[split_at:, :, :])
-        y, y_val = (y[0:split_at], y[split_at:])
+        split_at = int(len(x[0]) * (1. - validation_split))
+        x_train = []
+        x_val = []
+        for x1 in x:
+            x_train.append(x1[0:split_at, :, :]) 
+            x_val.append(x1[split_at:, :, :])
+        y_train, y_val = (y[0:split_at], y[split_at:])
     else:
-        raise ValueError("validation_split must be [0,1)")
-    return x, x_val, y, y_val
+        raise(ValueError("validation_split must be [0,1)"))
+    return x_train, x_val, y_train, y_val
 
 
 def get_section_hparams(name, ub, lb, type):

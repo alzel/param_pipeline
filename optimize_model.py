@@ -25,7 +25,7 @@ logging.basicConfig(format='%(asctime)s-%(levelname)s - %(message)s', datefmt='%
 config = tf.ConfigProto()
 #config.gpu_options.allow_growth = True
 config.log_device_placement = True
-config.gpu_options.per_process_gpu_memory_fraction = 0.4
+config.gpu_options.per_process_gpu_memory_fraction = 0.45
 sess = tf.Session(config=config)
 
 parser = argparse.ArgumentParser(description='Train my model.')
@@ -106,16 +106,11 @@ tf.set_random_seed(REPLICATE_SEED + 4)
 
 def wrapped_model(p):
 
-    if args.reverse:
-        x_chunk = x[:, :int(p['data_split']) + 1, :]
-        x_val_chunk = x_val[:, :int(p['data_split']) + 1, :]
-        # x_train_chunk = X_test[:, :int(suggestion['data_split']) + 1, :]
-    else:
-        x_chunk = x[:, int(p['data_split']):, :]
-        x_val_chunk = x_val[:, int(p['data_split']):, :]
-    # x_train_chunk = X_test[:, int(suggestion['data_split']):, :]
+#     deletion lines 109-116
+    x_chunk = x
+    x_val_chunk = x_val
 
-    model = POC_model(x_chunk.shape[1:3], p)
+    model = POC_model(1, p) # should not matter as shapes loaded internally
 
     if args.multi_gpu and args.multi_gpu >= 2: # often crashes because of this
         model = multi_gpu_model(model, gpus=args.multi_gpu)
@@ -239,11 +234,11 @@ if __name__ == "__main__":
     p_specific = Params()
     params = {**p_default, **p_specific}
 
-    if args.CHUNKS:  # adding chunks
-        if args.reverse:
-            params['data_split'] = hp.choice('data_split', [i[-1] for i in np.array_split(range(x.shape[1]), args.CHUNKS)])
-        else:
-            params['data_split'] = hp.choice('data_split', [i[0] for i in np.array_split(range(x.shape[1]), args.CHUNKS)])
+#     if args.CHUNKS:  # adding chunks
+#         if args.reverse:
+#             params['data_split'] = hp.choice('data_split', [i[-1] for i in np.array_split(range(x.shape[1]), args.CHUNKS)])
+#         else:
+#             params['data_split'] = hp.choice('data_split', [i[0] for i in np.array_split(range(x.shape[1]), args.CHUNKS)])
 
     # filters only defined parameters
     lines = "\n".join([inspect.getsource(i) for i in [POC_model, wrapped_model]])
