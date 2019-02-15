@@ -6,7 +6,7 @@ configfile: "config.yaml"
 
 import random
 import time
- 
+
 
 API_key= os.environ.get("COMET_API_KEY")
 
@@ -44,7 +44,21 @@ rule run_model:
         import subprocess
         import pandas
         from io import StringIO
-        time.sleep(random.randrange(0, 10))
+        file_name = "switch.txt"
+        cuda_gpu = 0
+        try:
+            f = open(file_name)
+            first_line = f.readline()
+            f.close()
+            first_line = int(first_line.strip())
+            if first_line:
+                cuda_gpu = 0
+            else:
+                cuda_gpu = 1
+        finally:
+            f = open(file_name, "w")
+            f.write(str(cuda_gpu))
+            f.close()
 
         def get_CUDA():
             command = "nvidia-smi --query-gpu=gpu_bus_id,pstate,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv,nounits,noheader"
@@ -54,7 +68,8 @@ rule run_model:
 
             if out_string:
                 df = pandas.read_csv(StringIO(out_string), header=None)
-                if df.shape != (1, 1):
+                print(df)
+		if df.shape != (1, 1):
                     return df[6].idxmin()
                 else:
                     return 0
@@ -84,8 +99,10 @@ rule run_model:
         chunks=config["input_files"]['datasets'][wildcards.dataset]["chunks"]
         reverse=config["input_files"]['datasets'][wildcards.dataset]["reverse"]
 
-        cuda_gpu=get_CUDA()
+        #cuda_gpu=get_CUDA()
         prefix = prefix + " CUDA_VISIBLE_DEVICES="+str(cuda_gpu)
+	print(cuda_gpu)
+
 
         command = f"python {app} --model {input.model} --data {input.dataset} --param_config {hparam_config} " \
                   f"--output_file {output.results} --model_ckpt_dir {params.weights} --verbose 0 " \
