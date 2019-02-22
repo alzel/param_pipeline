@@ -99,7 +99,7 @@ class MyCSVLogger(CSVLogger):
         self.keys = None
         self.append_header = True
         self.hpars = hpars
-        #self.test = {'test_loss': test.loss,'test_val_det_k': test.acc} 
+        #self.test_dict = {'test_loss': test.loss,'test_val_det_k': test.acc} 
         self.test = test
         self.file_flags = ''
         self._open_args = {'newline': '\n'}
