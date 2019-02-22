@@ -50,18 +50,20 @@ parser.add_argument('--tensorboard_dir',
                     default=None,
                     help="Directory to store logs/tensorboard")
 
-parser.add_argument('--CHUNKS',
-                    type=int,
-                    default=1,
-                    help="Chunks")
-parser.add_argument('--reverse',
-                    type=bool,
-                    default=False,
-                    help="reverses X_train, X_test sequences")
+# parser.add_argument('--CHUNKS',
+#                     type=int,
+#                     default=1,
+#                     help="Chunks")
+# parser.add_argument('--reverse',
+#                     type=bool,
+#                     default=False,
+#                     help="reverses X_train, X_test sequences")
+
 parser.add_argument('--REPLICATE_SEED',
                     type=int,
                     default=123,
                     help="SEED number")
+
 parser.add_argument('--multi_gpu',
                     type=int,
                     default=None,
@@ -71,7 +73,6 @@ parser.add_argument('--multi_gpu',
 parser.add_argument('--param_config',
                     type=str,
                     help="config file for parameter bounds")
-
 
 parser.add_argument('--validation_split', default=0.1, type=float,
                     help="Validation split")
@@ -106,16 +107,7 @@ tf.set_random_seed(REPLICATE_SEED + 4)
 
 def wrapped_model(p):
 
-    if args.reverse:
-        x_chunk = x[:, :int(p['data_split']) + 1, :]
-        x_val_chunk = x_val[:, :int(p['data_split']) + 1, :]
-        # x_train_chunk = X_test[:, :int(suggestion['data_split']) + 1, :]
-    else:
-        x_chunk = x[:, int(p['data_split']):, :]
-        x_val_chunk = x_val[:, int(p['data_split']):, :]
-    # x_train_chunk = X_test[:, int(suggestion['data_split']):, :]
-
-    model = POC_model(x_chunk.shape[1:3], p)
+    model = POC_model([sl.shape[1:] for sl in x], p)
 
     if args.multi_gpu and args.multi_gpu >= 2: # often crashes because of this
         model = multi_gpu_model(model, gpus=args.multi_gpu)
@@ -145,11 +137,11 @@ def wrapped_model(p):
                   loss='mse',
                   metrics=[coef_det_k])
 
-    out = model.fit(x_chunk, y,
+    out = model.fit(x, y,
                     batch_size=int(p['mbatch']),
                     epochs=int(p['epochs']),
                     verbose=args.verbose,
-                    validation_data=[x_val_chunk, y_val],
+                    validation_data=[x_val, y_val],
                     callbacks=call_backs)
 
     result = {
@@ -229,6 +221,12 @@ if __name__ == "__main__":
     exec("from models." + model_name + " import POC_model, load_data, Params")
     try:
         X_train, X_test, Y_train, Y_test = load_data(data_path)
+        
+        if not type(X_train) == list:
+            logging.info("X input must be a list")
+            X_train = [X_train]
+            X_test = [X_test]
+        
         logging.info("Successfully loaded data")
     except Exception as err:
         logging.error("Cannot load data", exc_info=True)
@@ -239,19 +237,12 @@ if __name__ == "__main__":
     p_specific = Params()
     params = {**p_default, **p_specific}
 
-    if args.CHUNKS:  # adding chunks
-        if args.reverse:
-            params['data_split'] = hp.choice('data_split', [i[-1] for i in np.array_split(range(x.shape[1]), args.CHUNKS)])
-        else:
-            params['data_split'] = hp.choice('data_split', [i[0] for i in np.array_split(range(x.shape[1]), args.CHUNKS)])
-
     # filters only defined parameters
     lines = "\n".join([inspect.getsource(i) for i in [POC_model, wrapped_model]])
     relevant_params = set(re.findall("p\['(\w+)'\]", lines))
     if 'id' in relevant_params:
         relevant_params.remove('id')
     params = {k: params[k] for k in relevant_params}
-
 
     pbar = tqdm(total=args.optimizer_iterations)
     n = 0

@@ -30,32 +30,32 @@ def load_data(fname):
 
 def Params():
     params = {
-        'kernel_size1': [10, 20, 30, 40],
-        'filters1': [16, 32, 64, 128],
-        'pool_size1': [1, 2, 4],
-        'dropout1' : (0,1),
-        'stride1': [1, 2],
-        'last_dense': [32, 64, 128, 256],
-        'dropout2': (0, 1)
+        'kernel_size1': [10],
+        'filters1': [16],
+        'pool_size1': [1],
+#        'dropout1' : (0,1),
+        'stride1': [1],
+        'last_dense': [32]
+#        'dropout2': (0, 1)
     }
     return {k: hp.choice(k, v) if type(v) == list else hp.uniform(k, v[0], v[1]) for k, v in params.items()}
 
 
-def POC_model(input_shape_hot, p):
+def POC_model(input_shape, p):
 
-    X_input1 = Input(shape=input_shape_hot)
+    X_input1 = Input(shape=input_shape[0])
 
     X = Conv1D(filters=int(p['filters1']), kernel_size=int(p['kernel_size1']), strides=1, activation='relu', kernel_initializer='he_uniform')(X_input1)
     X = BatchNormalization()(X)
-    X = Dropout(float(p['dropout1']))(X)
+    X = Dropout(0.1)(X)
     X = MaxPooling1D(pool_size=int(p['pool_size1']), strides=int(p['stride1']), padding='same')(X)
 
     X = Flatten()(X)
     X = Dense(int(p['last_dense']),activation='relu',kernel_initializer='he_uniform')(X)
     X = BatchNormalization()(X)
-    X = Dropout(float(p['dropout2']))(X)
+    X = Dropout(0.1)(X)
 
     X = Dense(1)(X)
-    model = Model(inputs=[X_input1], outputs=X)
+    model = Model(inputs=X_input1, outputs=X)
 
     return model

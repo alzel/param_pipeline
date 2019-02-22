@@ -96,8 +96,6 @@ rule run_model:
         iterations=config["input_files"]['optimizer_iterations']
         proj_name =config["experiment_name"]
         hparam_config=config["input_files"]["hparam_config"]
-        chunks=config["input_files"]['datasets'][wildcards.dataset]["chunks"]
-        reverse=config["input_files"]['datasets'][wildcards.dataset]["reverse"]
 
         #cuda_gpu=get_CUDA()
         prefix = prefix + " CUDA_VISIBLE_DEVICES="+str(cuda_gpu)
@@ -106,7 +104,7 @@ rule run_model:
 
         command = f"python {app} --model {input.model} --data {input.dataset} --param_config {hparam_config} " \
                   f"--output_file {output.results} --model_ckpt_dir {params.weights} --verbose 0 " \
-                  f"--CHUNKS {chunks}  --REPLICATE_SEED {wildcards.replicate_seed} " \
-                  f"--optimizer_iterations {iterations} --reverse {reverse} 2>&1| tee {log.log1}"
+                  f"--REPLICATE_SEED {wildcards.replicate_seed} " \
+                  f"--optimizer_iterations {iterations} 2>&1| tee {log.log1}"
         command = prefix + " " + command
         os.system(prefix + " " + command)

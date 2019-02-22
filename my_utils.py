@@ -141,9 +141,9 @@ class MyCSVLogger(CSVLogger):
 
 def split_data(x, y, validation_split=0.1):
     if validation_split and 0. < validation_split < 1.:
-        split_at = int(len(x[:]) * (1. - validation_split))
-        x, x_val = (x[0:split_at, :, :], x[split_at:, :, :])
-        y, y_val = (y[0:split_at], y[split_at:])
+        split_at = int(len(x[0][:]) * (1. - validation_split))
+        x, x_val = ([np.array(sl[0:split_at]) for sl in x], [np.array(sl[split_at:]) for sl in x])
+        y, y_val = (np.array(y[0:split_at]), np.array(y[split_at:]))
     else:
         raise ValueError("validation_split must be [0,1)")
     return x, x_val, y, y_val
@@ -161,7 +161,6 @@ def get_section_hparams(name, ub, lb, type):
     func = switcher.get(type, None)
     # Execute the function
     return func
-
 
 
 def create_hparams(param_config_file):
