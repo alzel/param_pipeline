@@ -233,6 +233,7 @@ if __name__ == "__main__":
     try:
         X_train, X_test, Y_train, Y_test = load_data(data_path)
         logging.info("Successfully loaded data")
+        logging.info(str(X_test.shape[0]))
     except Exception as err:
         logging.error("Cannot load data", exc_info=True)
 

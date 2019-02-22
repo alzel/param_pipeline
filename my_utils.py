@@ -99,15 +99,15 @@ class MyCSVLogger(CSVLogger):
         self.keys = None
         self.append_header = True
         self.hpars = hpars
-        
+        #self.test = {'test_loss': test.loss,'test_val_det_k': test.acc} 
         self.test = test
-
         self.file_flags = ''
         self._open_args = {'newline': '\n'}
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        logs = {**logs, **self.hpars, **self.test}
+        self.test_dict = {'test_loss': self.test.loss,'test_val_det_k': self.test.acc} 
+        logs = {**logs, **self.hpars, **self.test_dict}
 
         def handle_value(k):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
@@ -143,7 +143,9 @@ class MyCSVLogger(CSVLogger):
         
 class TestCallback(Callback): 
     def __init__(self, test_data): 
-        self.test_data = test_data 
+        self.test_data = test_data
+        self.loss = -1e8
+        self.acc = -1e8
     
     def on_epoch_end(self, epoch, logs={}): 
         x, y = self.test_data 
