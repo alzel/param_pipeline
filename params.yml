@@ -1,6 +1,6 @@
 
 default: &DEFAULT
-  epochs: [500]
+  epochs: [3]
   #early stopping
   min_delta: [0.01]
   patience: [50]
