@@ -5,7 +5,7 @@ from collections import Iterable
 import numpy as np
 import tensorflow as tf
 from keras import backend as K
-from keras.callbacks import TensorBoard, CSVLogger
+from keras.callbacks import TensorBoard, CSVLogger, Callback
 from hyperopt import hp
 from ruamel.yaml import YAML
 from collections.abc import Iterable
@@ -90,7 +90,7 @@ class MyCSVLogger(CSVLogger):
 
     """
 
-    def __init__(self, filename, hpars, separator=',', append=False):
+    def __init__(self, filename, hpars, test, separator=',', append=False):
 
         self.sep = separator
         self.filename = filename
@@ -99,13 +99,15 @@ class MyCSVLogger(CSVLogger):
         self.keys = None
         self.append_header = True
         self.hpars = hpars
-
+        #self.test_dict = {'test_loss': test.loss,'test_val_det_k': test.acc} 
+        self.test = test
         self.file_flags = ''
         self._open_args = {'newline': '\n'}
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        logs = {**logs, **self.hpars}
+        self.test_dict = {'test_loss': self.test.loss,'test_val_det_k': self.test.acc} 
+        logs = {**logs, **self.hpars, **self.test_dict}
 
         def handle_value(k):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
@@ -139,6 +141,18 @@ class MyCSVLogger(CSVLogger):
         self.csv_file.flush()
 
 
+class TestCallback(Callback): 
+    def __init__(self, test_data): 
+        self.test_data = test_data
+        self.loss = -1e8
+        self.acc = -1e8
+    
+    def on_epoch_end(self, epoch, logs={}): 
+        x, y = self.test_data 
+        self.loss, self.acc = self.model.evaluate(x, y, verbose=0) 
+        #print('\nTesting loss: {}, acc: {}\n'.format(loss, acc))
+        
+        
 def split_data(x, y, validation_split=0.1):
     if validation_split and 0. < validation_split < 1.:
         split_at = int(len(x[0][:]) * (1. - validation_split))

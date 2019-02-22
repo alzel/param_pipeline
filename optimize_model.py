@@ -9,7 +9,7 @@ import inspect
 import numpy as np
 import tensorflow as tf
 from keras.optimizers import Adam
-from my_utils import coef_det_k, best_check,last_check, TrainValTensorBoard, MyCSVLogger, create_hparams, split_data
+from my_utils import coef_det_k, best_check,last_check, TrainValTensorBoard, MyCSVLogger, TestCallback, create_hparams, split_data
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 import keras.backend as K
 from keras.utils import multi_gpu_model
@@ -124,10 +124,13 @@ def wrapped_model(p):
     hpars = {k: np.array(p[k]) for k in p.keys()}
     hpars['id'] = np.array(hash_string)
 
+    tcb = TestCallback((X_test, Y_test))
+    
     call_backs = [EarlyStopping(monitor='val_loss', min_delta=float(p['min_delta']), patience=int(p['patience'])),
+                  tcb,
                   ModelCheckpoint(filepath=best_model_ckpt_file, **best_check),
                   ModelCheckpoint(filepath=last_model_ckpt_file, **last_check),
-                  MyCSVLogger(filename=args.output_file, hpars=hpars, separator=",", append=True)]
+                  MyCSVLogger(filename=args.output_file, hpars=hpars, test=tcb, separator=",", append=True)]
 
     if args.tensorboard_dir:
         call_backs.append(TrainValTensorBoard(log_dir=os.path.join(args.tensorboard_dir, file_name + hash_string),
