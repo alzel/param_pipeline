@@ -15,3 +15,4 @@ params:
   #replicates
   replicate_seed: [1234]
   random_seed: 1111
+  one_job: 1

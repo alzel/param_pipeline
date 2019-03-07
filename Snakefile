@@ -44,6 +44,22 @@ rule run_model:
         import subprocess
         import pandas
         from io import StringIO
+        
+        def get_CUDA():
+            command = "nvidia-smi --query-gpu=gpu_bus_id,pstate,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv,nounits,noheader"
+            out_string = subprocess.run(command, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
+            # out_string="""00000000:17:00.0, P0, 65, 13, 16278, 2240, 14038
+            # 00000000:65:00.0, P0, 30, 0, 16270, 16104, 166
+            
+            if out_string:
+                df = pandas.read_csv(StringIO(out_string), header=None)
+                print(df)
+                if df.shape != (1, 1):
+                    return df[6].idxmin()
+                else:
+                    return 0
+                    
+        one_job = config['params']['one_job']
         file_name = "switch.txt"
         cuda_gpu = 0
         try:
@@ -51,30 +67,17 @@ rule run_model:
             first_line = f.readline()
             f.close()
             first_line = int(first_line.strip())
-            if first_line:
-                cuda_gpu = 0
+            if one_job:
+                cuda_gpu = get_CUDA()
             else:
-                cuda_gpu = 1
+                if first_line:
+                    cuda_gpu = 0
+                else:
+                    cuda_gpu = 1
         finally:
             f = open(file_name, "w")
             f.write(str(cuda_gpu))
             f.close()
-
-        def get_CUDA():
-            command = "nvidia-smi --query-gpu=gpu_bus_id,pstate,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv,nounits,noheader"
-            out_string = subprocess.run(command, shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
-            # out_string="""00000000:17:00.0, P0, 65, 13, 16278, 2240, 14038
-            # 00000000:65:00.0, P0, 30, 0, 16270, 16104, 166
-
-            if out_string:
-                df = pandas.read_csv(StringIO(out_string), header=None)
-                print(df)
-		if df.shape != (1, 1):
-                    return df[6].idxmin()
-                else:
-                    return 0
-            else:
-                return 0
 
         import os
         import socket
