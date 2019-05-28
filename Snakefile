@@ -82,6 +82,7 @@ rule run_model:
         import os
         import socket
         prefix = ""
+        python_interpreter = "python"  # Default
 
         # hacks needed to run different tensoflows depending if node has GPU
         if "kebnekaise" in socket.gethostname():
@@ -90,10 +91,13 @@ rule run_model:
         elif "hebbe" in socket.gethostname():
             prefix = (
                 "module load Anaconda3 GCC/6.4.0-2.28 OpenMPI/2.1.2 CUDA/9.1.85 TensorFlow/1.6.0-Python-3.6.4-CUDA-9.1.85; source activate py36;")
+        elif "ox" in socket.gethostname():
+            python_interpreter = "/home/zrimec/miniconda3/envs/py36/bin/python"
+        # elif "vera" ... conda env preloading with bashrc
 
-            # particular configuration for my MacBook pro
-        if "liv003l" in socket.gethostname():
-            prefix = ("source activate py36_tensorflow;")
+        # particular configuration for my MacBook pro
+        # if "liv003l" in socket.gethostname():
+        #    prefix = ("source activate py36_tensorflow;")
 
         app = config["input_files"]['app']
         iterations=config["input_files"]['optimizer_iterations']
@@ -102,10 +106,10 @@ rule run_model:
 
         #cuda_gpu=get_CUDA()
         prefix = prefix + " CUDA_VISIBLE_DEVICES="+str(cuda_gpu)
-	print(cuda_gpu)
+        print(cuda_gpu)
 
 
-        command = f"python {app} --model {input.model} --data {input.dataset} --param_config {hparam_config} " \
+        command = f"{python_interpreter} {app} --model {input.model} --data {input.dataset} --param_config {hparam_config} " \
                   f"--output_file {output.results} --model_ckpt_dir {params.weights} --verbose 0 " \
                   f"--REPLICATE_SEED {wildcards.replicate_seed} " \
                   f"--optimizer_iterations {iterations} 2>&1| tee {log.log1}"
