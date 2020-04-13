@@ -16,7 +16,8 @@ def coef_det_k(y_true, y_pred):
     """
     SS_res = K.sum(K.square(y_true - y_pred))
     SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
-    return 1 - SS_res / (SS_tot + K.epsilon())
+    return (1 - SS_res / (SS_tot + K.epsilon()))
+
 
 
 best_check = {'monitor': 'val_loss', 'verbose': 0, 'save_best_only': True, 'save_weights_only': True, 'mode': 'min'}

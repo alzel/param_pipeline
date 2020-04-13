@@ -47,7 +47,7 @@ def POC_model(input_shape, p):
 
     X = Conv1D(filters=int(p['filters1']), kernel_size=int(p['kernel_size1']), strides=1, activation='relu', kernel_initializer='he_uniform')(X_input1)
     X = BatchNormalization()(X)
-    X = Dropout(0.1)(X)
+    #X = Dropout(0.1)(X)
     X = MaxPooling1D(pool_size=int(p['pool_size1']), strides=int(p['stride1']), padding='same')(X)
 
     X = Flatten()(X)

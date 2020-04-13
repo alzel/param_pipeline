@@ -1,7 +1,10 @@
 experiment_name: _run_hyperas_test_callback
 input_files:
   models:
-    Model_C1: models/Model_C1_param.py
+    Model_C3F2dil_timeseries:
+      model: models/Model_C1_param.py
+      loss: mse
+      metrics: coef_det_k
   datasets:
     dataset_v01: 
       file: data/data_min-system-boxcox_corrected_rsd2.npz

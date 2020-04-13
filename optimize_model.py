@@ -9,6 +9,8 @@ import inspect
 import numpy as np
 import tensorflow as tf
 from keras.optimizers import Adam
+from keras.optimizers import RMSprop
+from keras.metrics import mse, binary_crossentropy, categorical_crossentropy, categorical_accuracy
 from my_utils import coef_det_k, best_check,last_check, TrainValTensorBoard, MyCSVLogger, TestCallback, create_hparams, split_data
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 import keras.backend as K
@@ -50,14 +52,18 @@ parser.add_argument('--tensorboard_dir',
                     default=None,
                     help="Directory to store logs/tensorboard")
 
-# parser.add_argument('--CHUNKS',
-#                     type=int,
-#                     default=1,
-#                     help="Chunks")
-# parser.add_argument('--reverse',
-#                     type=bool,
-#                     default=False,
-#                     help="reverses X_train, X_test sequences")
+parser.add_argument('--loss_function',
+                    type=str,
+                    choices=['mse', 'binary_crossentropy', 'categorical_crossentropy'],
+                    default="mse",
+                    help="loss function")
+
+parser.add_argument('--metrics',
+                    type=str,
+                    choices=['coef_det_k', 'categorical_accuracy'],
+                    default="coef_det_k",
+                    help="loss metrics")
+
 
 parser.add_argument('--REPLICATE_SEED',
                     type=int,
@@ -137,8 +143,8 @@ def wrapped_model(p):
                                               histogram_freq=10, write_grads=True))
 
     model.compile(optimizer=Adam(lr=p['lr'], beta_1=p['beta_1'], beta_2=p['beta_2'], epsilon=p['epsilon']),
-                  loss='mse',
-                  metrics=[coef_det_k])
+                  loss=eval(args.loss_function),
+                  metrics=[eval(args.metrics)])
 
     out = model.fit(x, y,
                     batch_size=int(p['mbatch']),
@@ -149,7 +155,7 @@ def wrapped_model(p):
 
     result = {
         'loss': min(out.history['val_loss']),
-        'coef_det': max(out.history['val_coef_det_k']),
+        'metrics': max(out.history['val_{}'.format(args.metrics)]),
         'space': p,
         'history': out.history,
         'status': STATUS_OK
@@ -236,6 +242,7 @@ if __name__ == "__main__":
 
     # splitting validation data
     x, x_val, y, y_val = split_data(x=X_train, y=Y_train, validation_split=args.validation_split)
+
 
     p_specific = Params()
     params = {**p_default, **p_specific}

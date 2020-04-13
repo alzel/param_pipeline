@@ -30,11 +30,13 @@ for dataset in config['input_files']['datasets']:
 rule run_model:
     input:
         dataset=lambda wildcards: config["input_files"]["datasets"][wildcards.dataset]["file"],
-        model=lambda wildcards: config["input_files"]["models"][wildcards.model],
+        model=lambda wildcards: config["input_files"]["models"][wildcards.model]["model"]
     output:
         results="{experiment}/results/{dataset}/{dataset}_{model}_{replicate_seed}.csv"
     params:
-        weights="{experiment}/weights/{dataset}/{dataset}_{model}_{replicate_seed}"
+        weights="{experiment}/weights/{dataset}/{dataset}_{model}_{replicate_seed}",
+        loss = lambda wildcards: config["input_files"]["models"][wildcards.model]["loss"],
+        metrics = lambda wildcards: config["input_files"]["models"][wildcards.model]["metrics"]
     log:
         log1="{experiment}/logs/{dataset}_{model}_{replicate_seed}.log"
     resources:
@@ -110,6 +112,7 @@ rule run_model:
 
 
         command = f"{python_interpreter} {app} --model {input.model} --data {input.dataset} --param_config {hparam_config} " \
+                  f"--loss_function {params.loss} --metrics {params.metrics} " \
                   f"--output_file {output.results} --model_ckpt_dir {params.weights} --verbose 0 " \
                   f"--REPLICATE_SEED {wildcards.replicate_seed} " \
                   f"--optimizer_iterations {iterations} 2>&1| tee {log.log1}"
